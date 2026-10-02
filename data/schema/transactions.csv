@@ -1,0 +1,1 @@
+transaction_id,user_id,wallet_id,timestamp,transaction_type,direction,amount,category,subcategory,merchant_type,channel,cash_out,balance_after

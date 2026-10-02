@@ -24,6 +24,7 @@ data/generated/
 *.parquet
 *.pkl
 *.joblib
+!data/schema/*.csv
 
 # ML
 ml/models/
