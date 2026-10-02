@@ -86,6 +86,91 @@ AGE_INCOME_MULTIPLIER = {
     "55+": 0.74,
 }
 
+TRANSACTION_CATEGORIES = {
+    "food": ["restaurant", "grocery", "snacks"],
+    "transport": ["bus", "ride", "fuel"],
+    "shopping": ["clothing", "electronics", "general"],
+    "education": ["tuition", "books", "course"],
+    "health": ["medicine", "doctor", "pharmacy"],
+    "utilities": ["electricity", "internet", "water"],
+    "communication": ["mobile_recharge", "internet"],
+    "entertainment": ["movies", "games", "events"],
+    "family": ["family_support", "gift"],
+    "housing": ["rent", "maintenance"],
+    "cash": ["cash_out"],
+    "transfer": ["salary_credit", "self_transfer", "p2p"],
+    "other": ["misc"],
+}
+
+TRANSACTION_TYPES = [
+    "payment",
+    "cash_out",
+    "cash_in",
+    "transfer",
+    "bill_payment",
+    "mobile_recharge",
+    "bank_transfer",
+]
+
+DIRECTIONS = ["inflow", "outflow"]
+
+CHANNELS = ["upay", "agent", "merchant", "bank", "online"]
+
+MERCHANT_TYPES = ["merchant", "agent", "ecommerce", "utility", "person"]
+
+# Income type / source / regularity implied by occupation.
+OCCUPATION_INCOME_PROFILE = {
+    "student": ("allowance", "family", "irregular"),
+    "private_employee": ("salary", "employer", "regular"),
+    "business": ("business", "own_business", "seasonal"),
+    "freelancer": ("freelance", "freelance_client", "irregular"),
+    "self_employed": ("business", "own_business", "irregular"),
+    "other": ("salary", "employer", "regular"),
+}
+
+# Monthly discretionary (non-bill) transaction counts by persona.
+PERSONA_TRANSACTION_COUNT = {
+    "stable_saver": (14, 30),
+    "end_month_shortage": (22, 44),
+    "irregular_income": (18, 36),
+    "high_cash_dependency": (30, 55),
+    "goal_oriented": (14, 30),
+    "seasonal_spender": (20, 38),
+    "sudden_anomaly": (18, 34),
+    "financial_pressure": (26, 48),
+}
+
+# Share of monthly income a persona earns, and how volatile it is.
+PERSONA_INCOME_FACTOR = {
+    "stable_saver": (0.97, 1.05),
+    "end_month_shortage": (0.95, 1.06),
+    "irregular_income": (0.35, 1.90),
+    "high_cash_dependency": (0.94, 1.07),
+    "goal_oriented": (0.97, 1.06),
+    "seasonal_spender": (0.90, 1.15),
+    "sudden_anomaly": (0.95, 1.08),
+    "financial_pressure": (0.85, 1.05),
+}
+
+# Typical single-transaction size as a fraction of monthly income, so ticket
+# sizes scale with what the user can actually afford. Everyday purchases are
+# small; rent and large transfers are large.
+CATEGORY_TICKET_FRACTION = {
+    "food": 0.0045,
+    "transport": 0.0022,
+    "shopping": 0.0180,
+    "education": 0.0550,
+    "health": 0.0140,
+    "utilities": 0.0280,
+    "communication": 0.0048,
+    "entertainment": 0.0090,
+    "family": 0.0200,
+    "housing": 0.2200,
+    "cash": 0.0600,
+    "transfer": 0.0400,
+    "other": 0.0080,
+}
+
 
 @dataclass(frozen=True)
 class PersonaProfile:
@@ -386,7 +471,7 @@ def generate_wallets(users: pd.DataFrame) -> pd.DataFrame:
         profile = PERSONA_PROFILES[user["persona"]]
         expense_ratio = float(user["expense_ratio"])
 
-        upay_balance = round(float(np.random.uniform(0.10, 0.55)) * (income + 2_000.0), 2)
+        upay_balance = round(float(np.random.uniform(0.35, 1.10)) * (income + 3_000.0), 2)
         rows.append({
             "wallet_id": f"W{len(rows) + 1:05d}",
             "user_id": user_id,
@@ -428,7 +513,530 @@ def generate_wallets(users: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def validate(users: pd.DataFrame, wallets: pd.DataFrame) -> None:
+
+def month_starts() -> list[pd.Timestamp]:
+    """First day of each month in the simulation window."""
+    return list(pd.date_range(START_DATE, periods=MONTHS, freq="MS"))
+
+
+def days_in_month(month: pd.Timestamp) -> int:
+    return int(month.days_in_month)
+
+
+def generate_income_for_user(user: pd.Series, months: list[pd.Timestamp]) -> list[dict]:
+    """Generate one user's income events, anchored to their stored income base.
+
+    Amounts scale with ``monthly_income_base`` from ``users.csv`` so the two
+    tables never disagree about how much this user earns.
+    """
+    rows: list[dict] = []
+
+    user_id = user["user_id"]
+    persona = user["persona"]
+    occupation = user["occupation"]
+    base_income = float(user["monthly_income_base"])
+
+    income_type, source, default_regularity = OCCUPATION_INCOME_PROFILE[occupation]
+    low, high = PERSONA_INCOME_FACTOR[persona]
+
+    payday = int(np.random.randint(1, 6))
+    has_variable_timing = persona == "irregular_income" or occupation in (
+        "freelancer", "business", "self_employed",
+    )
+
+    if base_income <= 0.0:
+        # No recorded earnings: emit small, scattered irregular amounts so the
+        # user still has a plausible history.
+        for month in months:
+            day = int(np.random.randint(1, days_in_month(month) + 1))
+            timestamp = month + pd.Timedelta(
+                days=day - 1,
+                hours=int(np.random.randint(8, 20)),
+                minutes=int(np.random.randint(0, 60)),
+            )
+            rows.append({
+                "income_id": "PENDING",
+                "user_id": user_id,
+                "timestamp": timestamp,
+                "income_type": income_type,
+                "amount": round(float(np.random.uniform(0.0, 4_000.0)), 2),
+                "regularity": "irregular",
+                "source": source,
+            })
+        return rows
+
+    for month in months:
+        if persona == "irregular_income" and np.random.random() < 0.12:
+            # Occasional zero-income month: this is what makes the persona's
+            # cash flow hard to forecast.
+            continue
+        month_income = base_income * float(np.random.uniform(low, high))
+
+        if has_variable_timing:
+            n_events = int(np.random.randint(1, 4))
+        elif income_type == "business":
+            n_events = int(np.random.randint(1, 3))
+        else:
+            n_events = 1
+
+        splits = np.random.dirichlet(np.ones(n_events) * 4.0)
+        for split in splits:
+            if has_variable_timing:
+                day = int(np.random.randint(1, days_in_month(month) + 1))
+            else:
+                day = min(payday, days_in_month(month))
+
+            timestamp = month + pd.Timedelta(
+                days=day - 1,
+                hours=int(np.random.randint(8, 19)),
+                minutes=int(np.random.randint(0, 60)),
+            )
+
+            regularity = default_regularity
+            if persona == "irregular_income":
+                regularity = "irregular"
+            elif persona == "seasonal_spender" or income_type == "business":
+                regularity = "seasonal"
+
+            rows.append({
+                "income_id": "PENDING",
+                "user_id": user_id,
+                "timestamp": timestamp,
+                "income_type": income_type,
+                "amount": round(float(month_income * split), 2),
+                "regularity": regularity,
+                "source": source,
+            })
+
+    return rows
+
+
+def generate_all_income(users: pd.DataFrame, months: list[pd.Timestamp]) -> pd.DataFrame:
+    """Generate income events for every user, keeping ids globally unique."""
+    rows: list[dict] = []
+    counter = 0
+
+    for _, user in users.iterrows():
+        for row in generate_income_for_user(user, months):
+            counter += 1
+            row["income_id"] = f"I{counter:07d}"
+            rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+def persona_category_weights(persona: str) -> dict[str, float]:
+    """Relative propensity to spend on each category."""
+    weights = {category: 1.0 for category in TRANSACTION_CATEGORIES}
+
+    if persona == "financial_pressure":
+        weights["food"] *= 1.4
+        weights["family"] *= 1.5
+        weights["health"] *= 1.2
+        weights["shopping"] *= 0.6
+    elif persona == "goal_oriented":
+        weights["shopping"] *= 0.6
+        weights["entertainment"] *= 0.6
+        weights["education"] *= 1.4
+    elif persona == "high_cash_dependency":
+        weights["food"] *= 1.3
+        weights["transport"] *= 1.2
+        weights["entertainment"] *= 1.2
+    elif persona == "seasonal_spender":
+        weights["shopping"] *= 1.5
+        weights["family"] *= 1.3
+        weights["entertainment"] *= 1.3
+    elif persona == "sudden_anomaly":
+        weights["health"] *= 1.4
+        weights["other"] *= 1.3
+    elif persona == "stable_saver":
+        weights["shopping"] *= 0.7
+        weights["entertainment"] *= 0.7
+
+    return weights
+
+
+def sample_day(persona: str, dim: int) -> int:
+    """Sample a day of the month with persona-specific timing behaviour."""
+    days = np.arange(1, dim + 1)
+
+    if persona == "end_month_shortage":
+        weights = np.where(days >= 23, 3.2, 1.0)
+    elif persona == "seasonal_spender":
+        weights = np.where(days >= 20, 2.8, 1.0)
+    elif persona == "stable_saver":
+        weights = np.where(days >= 25, 0.35, 1.0)
+    elif persona == "goal_oriented":
+        weights = np.where(np.isin(days, [2, 3, 4, 28]), 2.2, 0.9)
+    elif persona == "financial_pressure":
+        weights = np.where(days >= 24, 2.0, 1.0)
+    else:
+        weights = np.ones(len(days), dtype=float)
+
+    return int(np.random.choice(days, p=weights / weights.sum()))
+
+
+def monthly_bills_for_user(user: pd.Series) -> list[dict]:
+    """Recurring monthly obligations for one user, scaled to their income."""
+    income = float(user["monthly_income_base"])
+    persona = user["persona"]
+    occupation = user["occupation"]
+    bills: list[dict] = []
+
+    if occupation == "student":
+        bills.append({
+            "name": "family_support", "category": "family",
+            "amount": round(float(np.random.uniform(1_500.0, 5_000.0)), 2),
+            "day": int(np.random.randint(5, 12)), "type": "payment", "channel": "upay",
+        })
+    else:
+        bills.append({
+            "name": "rent", "category": "housing",
+            "amount": round(float(np.random.uniform(0.18, 0.34)) * max(income, 10_000.0), 2),
+            "day": int(np.random.randint(1, 6)), "type": "payment", "channel": "upay",
+        })
+
+    bills.append({
+        "name": "electricity", "category": "utilities",
+        "amount": round(float(np.random.uniform(400.0, 2_800.0)), 2),
+        "day": int(np.random.randint(6, 14)), "type": "bill_payment", "channel": "upay",
+    })
+    bills.append({
+        "name": "internet", "category": "communication",
+        "amount": round(float(np.random.uniform(500.0, 2_000.0)), 2),
+        "day": int(np.random.randint(3, 10)), "type": "bill_payment", "channel": "upay",
+    })
+    bills.append({
+        "name": "mobile_recharge", "category": "communication",
+        "amount": round(float(np.random.uniform(100.0, 900.0)), 2),
+        "day": int(np.random.randint(2, 27)), "type": "mobile_recharge", "channel": "upay",
+    })
+
+    if persona == "goal_oriented" or occupation == "student":
+        bills.append({
+            "name": "education", "category": "education",
+            "amount": round(float(np.random.uniform(1_200.0, 9_000.0)), 2),
+            "day": int(np.random.randint(5, 20)), "type": "payment", "channel": "upay",
+        })
+
+    if persona in ("financial_pressure", "sudden_anomaly"):
+        bills.append({
+            "name": "medicine", "category": "health",
+            "amount": round(float(np.random.uniform(500.0, 4_500.0)), 2),
+            "day": int(np.random.randint(8, 26)), "type": "payment", "channel": "upay",
+        })
+
+    return bills
+
+
+def generate_transactions(
+    users: pd.DataFrame,
+    wallets: pd.DataFrame,
+    income: pd.DataFrame,
+    months: list[pd.Timestamp],
+) -> pd.DataFrame:
+    """Generate a chronologically ordered, balance-consistent transaction log.
+
+    Events are collected per user, then replayed in timestamp order so that
+    ``balance_after`` is a true running balance and every amount is funded by
+    the wallet it actually debits.
+    """
+    wallet_map = (
+        wallets[wallets["wallet_type"] == "upay"].set_index("user_id")["wallet_id"].to_dict()
+    )
+    cash_map = (
+        wallets[wallets["wallet_type"] == "cash"].set_index("user_id")["wallet_id"].to_dict()
+    )
+    opening_by_wallet = {
+        row.wallet_id: float(row.opening_balance) for row in wallets.itertuples()
+    }
+
+    events: list[dict] = []
+    cash_pair_counter = 0
+
+    def emit(user_id, wallet_id, timestamp, transaction_type, direction, amount,
+             category, subcategory, merchant_type, channel, cash_out_flag, order,
+             pair_id=None):
+        events.append({
+            "user_id": user_id,
+            "wallet_id": wallet_id,
+            "timestamp": timestamp,
+            "transaction_type": transaction_type,
+            "direction": direction,
+            "amount": round(abs(amount), 2),
+            "category": category,
+            "subcategory": subcategory,
+            "merchant_type": merchant_type,
+            "channel": channel,
+            "cash_out": cash_out_flag,
+            "_order": order,
+            "pair_id": pair_id,
+        })
+
+    income_groups = {uid: grp for uid, grp in income.groupby("user_id")}
+    discrete_categories = [
+        c for c in TRANSACTION_CATEGORIES if c not in ("housing", "cash", "transfer", "other")
+    ]
+
+    for _, user in users.iterrows():
+        user_id = user["user_id"]
+        persona = user["persona"]
+        primary_wallet = wallet_map[user_id]
+        cash_wallet = cash_map.get(user_id)
+        income_base = float(user["monthly_income_base"])
+        expense_ratio = float(user["expense_ratio"])
+        cash_out_rate = float(user["cash_out_rate"])
+        anomaly_rate = float(user["anomaly_rate"])
+        digital_ratio = float(user["digital_ratio"])
+
+        bills = monthly_bills_for_user(user)
+        category_weights = persona_category_weights(persona)
+        category_probs = np.array([category_weights[c] for c in discrete_categories], dtype=float)
+        category_probs = category_probs / category_probs.sum()
+        low_count, high_count = PERSONA_TRANSACTION_COUNT[persona]
+
+        cash_available = opening_by_wallet.get(cash_wallet, 0.0) if cash_wallet else 0.0
+
+        for month in months:
+            month_end = month + pd.offsets.MonthBegin(1)
+            dim = days_in_month(month)
+
+            group = income_groups.get(user_id)
+            if group is not None and len(group):
+                month_events = group[
+                    (group["timestamp"] >= month) & (group["timestamp"] < month_end)
+                ].sort_values("timestamp")
+            else:
+                month_events = income.iloc[0:0]
+
+            month_income = float(month_events["amount"].sum()) if len(month_events) else 0.0
+
+            fixed_total = float(sum(bill["amount"] for bill in bills))
+            pool_multiplier = float(np.random.uniform(0.92, 1.08))
+            discretionary_budget = max(
+                (month_income * expense_ratio - fixed_total) * pool_multiplier,
+                month_income * 0.15,
+                500.0,
+            )
+            count = int(np.random.randint(low_count, high_count + 1))
+
+            draft: list[tuple[str, float, int]] = []
+            for _ in range(count):
+                category = str(np.random.choice(discrete_categories, p=category_probs))
+                ticket = max(
+                    CATEGORY_TICKET_FRACTION[category] * max(income_base, 6_000.0), 25.0
+                )
+                amount = float(np.random.lognormal(mean=np.log(ticket), sigma=0.55))
+                draft.append((category, amount, sample_day(persona, dim)))
+
+            drawn_total = float(sum(item[1] for item in draft))
+            scale = (discretionary_budget / drawn_total) if drawn_total > 0 else 1.0
+
+            planned: list[dict] = []
+
+            for bill in bills:
+                day = min(bill["day"], dim)
+                planned.append({
+                    "timestamp": month + pd.Timedelta(
+                        days=day - 1,
+                        hours=int(np.random.randint(8, 21)),
+                        minutes=int(np.random.randint(0, 60)),
+                    ),
+                    "category": bill["category"],
+                    "amount": float(bill["amount"]),
+                    "type": bill["type"],
+                    "subcategory": None,
+                })
+
+            for category, amount, day in draft:
+                planned.append({
+                    "timestamp": month + pd.Timedelta(
+                        days=day - 1,
+                        hours=int(np.random.randint(6, 23)),
+                        minutes=int(np.random.randint(0, 60)),
+                    ),
+                    "category": category,
+                    "amount": round(max(amount * scale, 20.0), 2),
+                    "type": "payment",
+                    "subcategory": None,
+                })
+
+            if np.random.random() < anomaly_rate:
+                for _ in range(int(np.random.randint(1, 4))):
+                    category = str(
+                        np.random.choice(["health", "family", "other"], p=[0.45, 0.40, 0.15])
+                    )
+                    planned.append({
+                        "timestamp": month + pd.Timedelta(
+                            days=int(np.random.randint(1, dim + 1)) - 1,
+                            hours=int(np.random.randint(9, 22)),
+                            minutes=int(np.random.randint(0, 60)),
+                        ),
+                        "category": category,
+                        "amount": round(
+                            float(np.random.uniform(0.25, 0.85)) * max(month_income, 5_000.0), 2
+                        ),
+                        "type": "payment",
+                        "subcategory": str(np.random.choice(TRANSACTION_CATEGORIES[category])),
+                    })
+
+            timeline: list[dict] = []
+            for event in month_events.itertuples():
+                sub = "salary_credit" if event.income_type == "salary" else "p2p"
+                timeline.append({
+                    "timestamp": event.timestamp,
+                    "category": "transfer",
+                    "amount": float(event.amount),
+                    "type": "transfer",
+                    "subcategory": sub,
+                    "is_income": True,
+                })
+            for item in planned:
+                timeline.append({**item, "is_income": False})
+            timeline.sort(key=lambda item: item["timestamp"])
+
+            n_cashouts = int(np.random.binomial(6, cash_out_rate)) if cash_wallet else 0
+            cash_schedule: dict[int, float] = {}
+            if n_cashouts:
+                share = float(np.random.uniform(0.20, 0.55))
+                per_cashout = round(discretionary_budget * share / n_cashouts, 2)
+                for _ in range(n_cashouts):
+                    day = int(np.random.randint(1, dim + 1))
+                    cash_schedule[day] = cash_schedule.get(day, 0.0) + per_cashout
+
+            for item in timeline:
+                timestamp = item["timestamp"]
+                day = timestamp.day
+                category = item["category"]
+                amount = float(item["amount"])
+
+                if day in cash_schedule:
+                    withdraw = cash_schedule[day]
+                    cash_ts = timestamp - pd.Timedelta(hours=2)
+                    cash_pair_counter += 1
+                    pair_id = f"C{cash_pair_counter:08d}"
+                    emit(user_id, primary_wallet, cash_ts, "cash_out", "outflow",
+                         withdraw, "cash", "cash_out", "agent", "agent", True, 0, pair_id)
+                    emit(user_id, cash_wallet, cash_ts, "cash_in", "inflow",
+                         withdraw, "cash", "cash_out", "agent", "agent", True, 1, pair_id)
+                    cash_available += withdraw
+
+                if item["is_income"]:
+                    emit(user_id, primary_wallet, timestamp, "transfer", "inflow",
+                         amount, "transfer", item["subcategory"], "person", "bank", False, 0)
+                    continue
+
+                subcategory = item["subcategory"] or str(
+                    np.random.choice(TRANSACTION_CATEGORIES[category])
+                )
+
+                funded_by_cash = (
+                    cash_wallet is not None
+                    and cash_available >= amount
+                    and np.random.random() < (1.0 - digital_ratio)
+                )
+                wallet_id = cash_wallet if funded_by_cash else primary_wallet
+
+                if funded_by_cash:
+                    channel, merchant_type = "agent", "agent"
+                elif category in ("utilities", "communication"):
+                    channel, merchant_type = "upay", "utility"
+                elif category == "shopping":
+                    channel = "online" if np.random.random() < 0.35 else "upay"
+                    merchant_type = "ecommerce" if channel == "online" else "merchant"
+                else:
+                    channel, merchant_type = "upay", "merchant"
+
+                if funded_by_cash:
+                    cash_available -= amount
+
+                emit(user_id, wallet_id, timestamp, item["type"], "outflow",
+                     amount, category, subcategory, merchant_type, channel, funded_by_cash, 0)
+
+    # Replay every event chronologically to produce true running balances.
+    events.sort(key=lambda e: (e["user_id"], e["timestamp"], e["_order"], e["amount"]))
+
+    balances = dict(opening_by_wallet)
+    overdraft_limit = {
+        wallet_id: round(amount * 0.6, 2) for wallet_id, amount in opening_by_wallet.items()
+    }
+
+    rows: list[dict] = []
+    row_index: dict[str, int] = {}
+    overdraft_events = 0
+    pending_cash_cap: dict[str, float] = {}
+
+    for event in events:
+        wallet_id = event["wallet_id"]
+        signed = event["amount"] if event["direction"] == "inflow" else -event["amount"]
+        balance = balances[wallet_id]
+        new_balance = round(balance + signed, 2)
+
+        pair_id = event.get("pair_id")
+
+        # The deposit leg of a cash transfer must match the withdrawal leg,
+        # even when the withdrawal gets capped by the overdraft limit.
+        if pair_id is not None and event["direction"] == "inflow":
+            capped = pending_cash_cap.get(pair_id)
+            if capped is not None and capped <= 0.0:
+                # The matching withdrawal was dropped for lack of funds.
+                continue
+            if capped is not None and capped < event["amount"]:
+                event["amount"] = capped
+                signed = capped
+                new_balance = round(balance + signed, 2)
+                partner = row_index.get(pair_id)
+                if partner is not None:
+                    rows[partner]["amount"] = capped
+
+        if new_balance < -overdraft_limit[wallet_id]:
+            # Cannot spend past the limit: reduce to what is actually available.
+            allowed = round(max(balance + overdraft_limit[wallet_id], 0.0), 2)
+            if allowed <= 0.0:
+                # Nothing available: the purchase simply never happens. Record
+                # it so the paired leg of a cash transfer is dropped too.
+                if pair_id is not None:
+                    pending_cash_cap[pair_id] = 0.0
+                continue
+            event["amount"] = allowed
+            signed = allowed if event["direction"] == "inflow" else -allowed
+            new_balance = round(balance + signed, 2)
+            if pair_id is not None and event["direction"] == "outflow":
+                pending_cash_cap[pair_id] = allowed
+
+        if event["direction"] == "outflow" and new_balance < 0:
+            overdraft_events += 1
+
+        balances[wallet_id] = new_balance
+        position = len(rows)
+        rows.append({
+            "transaction_id": f"T{position + 1:08d}",
+            "user_id": event["user_id"],
+            "wallet_id": wallet_id,
+            "timestamp": event["timestamp"],
+            "transaction_type": event["transaction_type"],
+            "direction": event["direction"],
+            "amount": event["amount"],
+            "category": event["category"],
+            "subcategory": event["subcategory"],
+            "merchant_type": event["merchant_type"],
+            "channel": event["channel"],
+            "cash_out": event["cash_out"],
+            "balance_after": new_balance,
+        })
+        if pair_id is not None:
+            row_index[pair_id] = position
+
+    print(f"  transactions with an overdraft balance: {overdraft_events}")
+    return pd.DataFrame(rows)
+
+
+def validate(
+    users: pd.DataFrame,
+    wallets: pd.DataFrame,
+    income: pd.DataFrame,
+    transactions: pd.DataFrame,
+) -> None:
     """Fail loudly if the generated data is not internally coherent."""
     assert set(users["persona"]) == set(PERSONAS), "persona set mismatch"
     assert not users["user_id"].duplicated().any(), "duplicate user_id"
@@ -440,24 +1048,108 @@ def validate(users: pd.DataFrame, wallets: pd.DataFrame) -> None:
         == users["user_id"].nunique()
     )
     assert every_user_has_upay, "some users have no upay wallet"
+    assert not set(wallets["user_id"]) - set(users["user_id"]), "wallets reference unknown users"
 
-    orphans = set(wallets["user_id"]) - set(users["user_id"])
-    assert not orphans, f"wallets referencing unknown users: {orphans}"
-
-    # Account must be older than the history window, otherwise opening balances
-    # would describe a period before the account existed.
     assert (users["account_age_days"] >= min_account_age_days()).all(), (
         "account_age_days shorter than simulated history"
     )
-
     earners = users[users["monthly_income_base"] > 0]
     assert (earners["monthly_income_base"] > 0).all(), "non-positive income"
 
+    # Referential integrity across all four tables.
+    assert not set(income["user_id"]) - set(users["user_id"]), "income references unknown users"
+    assert not set(transactions["user_id"]) - set(users["user_id"]), (
+        "transactions reference unknown users"
+    )
+    assert not set(transactions["wallet_id"]) - set(wallets["wallet_id"]), (
+        "transactions reference unknown wallets"
+    )
+    assert not income["income_id"].duplicated().any(), "duplicate income_id"
+    assert not transactions["transaction_id"].duplicated().any(), "duplicate transaction_id"
 
-def report(users: pd.DataFrame, wallets: pd.DataFrame) -> None:
+    owner = wallets.set_index("wallet_id")["user_id"].to_dict()
+    mismatched = [
+        row.transaction_id
+        for row in transactions.itertuples()
+        if owner[row.wallet_id] != row.user_id
+    ]
+    assert not mismatched, f"transaction wallet does not belong to its user: {mismatched[:3]}"
+
+    # Controlled vocabularies.
+    assert set(transactions["transaction_type"]) <= set(TRANSACTION_TYPES), "bad transaction_type"
+    assert set(transactions["direction"]) <= set(DIRECTIONS), "bad direction"
+    assert set(transactions["channel"]) <= set(CHANNELS), "bad channel"
+    assert set(transactions["category"]) <= set(TRANSACTION_CATEGORIES), "bad category"
+    assert set(transactions["merchant_type"]) <= set(MERCHANT_TYPES), "bad merchant_type"
+
+    valid_subcategories = {
+        category: set(subs) for category, subs in TRANSACTION_CATEGORIES.items()
+    }
+    bad = [
+        (row.category, row.subcategory)
+        for row in transactions.itertuples()
+        if row.subcategory not in valid_subcategories.get(row.category, set())
+    ]
+    assert not bad, f"subcategory does not belong to its category: {bad[:3]}"
+
+    # Time coherence.
+    first = pd.Timestamp(START_DATE)
+    last = pd.Timestamp(end_of_history_date()) + pd.Timedelta(days=1)
+    for frame, label in ((transactions, "transaction"), (income, "income")):
+        assert (frame["timestamp"] >= first).all(), f"{label} before history start"
+        assert (frame["timestamp"] < last).all(), f"{label} after history end"
+
+    # Every user must have at least some activity in the window.
+    assert len(transactions) > 0, "no transactions generated"
+    assert set(transactions["user_id"]) == set(users["user_id"]), (
+        "some users have no transactions"
+    )
+    assert (transactions["amount"] > 0).all(), "non-positive transaction amount"
+    assert (income["amount"] >= 0).all(), "negative income"
+
+    # Accounting coherence: balance_after must be a true running balance.
+    opening = wallets.set_index("wallet_id")["opening_balance"].to_dict()
+    ordered = transactions.sort_values(["wallet_id", "timestamp", "transaction_id"])
+    running: dict[str, float] = {}
+    drift = 0.0
+    for row in ordered.itertuples():
+        expected = running.get(row.wallet_id, float(opening[row.wallet_id]))
+        signed = row.amount if row.direction == "inflow" else -row.amount
+        expected = round(expected + signed, 2)
+        drift = max(drift, abs(expected - row.balance_after))
+        running[row.wallet_id] = row.balance_after
+    assert drift < 0.05, f"balance_after is not a true running balance (drift {drift})"
+
+    # Income must be credited to a wallet exactly once, with the same amount.
+    credited = transactions[
+        (transactions["direction"] == "inflow") & (transactions["category"] == "transfer")
+    ]
+    credited_total = float(credited["amount"].sum())
+    income_total = float(income["amount"].sum())
+    assert abs(credited_total - income_total) < 1.0, (
+        f"credited income {credited_total} != income events {income_total}"
+    )
+
+    # Cash-outs move money between wallets, so both legs must reconcile.
+    cash_rows = transactions[transactions["category"] == "cash"]
+    legs = cash_rows.groupby("direction")["amount"].sum()
+    assert abs(float(legs.get("outflow", 0.0)) - float(legs.get("inflow", 0.0))) < 1.0, (
+        "cash withdrawal and deposit legs do not reconcile"
+    )
+
+
+def report(
+    users: pd.DataFrame,
+    wallets: pd.DataFrame,
+    income: pd.DataFrame,
+    transactions: pd.DataFrame,
+) -> None:
     counts = users["persona"].value_counts()
     print(f"Generated {len(users)} users")
     print(f"Generated {len(wallets)} wallets")
+    print(f"Generated {len(income)} income events")
+    print(f"Generated {len(transactions)} transactions")
+
     print("\nPersona distribution:")
     for persona in PERSONAS:
         share = counts.get(persona, 0) / max(len(users), 1)
@@ -466,14 +1158,37 @@ def report(users: pd.DataFrame, wallets: pd.DataFrame) -> None:
     print("\nWallets per type:")
     print(wallets["wallet_type"].value_counts().to_string())
 
-    earners = users[users["monthly_income_base"] > 0]
-    print("\nMonthly income base by occupation (BDT):")
+    frame = transactions.merge(users[["user_id", "persona"]], on="user_id")
+
+    # A cash-out is an internal transfer (upay wallet -> cash wallet), not
+    # consumption. The spending it funds is already recorded against the cash
+    # wallet, so counting both would double-count the same money.
+    transfers = frame["category"] == "cash"
+    outflows = frame[(frame["direction"] == "outflow") & ~transfers]
+    inflows = frame[frame["direction"] == "inflow"]
+
+    summary = outflows.groupby("persona").agg(
+        txns=("amount", "size"),
+        spend=("amount", "sum"),
+        cash_share=("cash_out", "mean"),
+    )
+    summary["spend_per_txn"] = (summary["spend"] / summary["txns"]).round(0)
+    income_by_persona = inflows.groupby("persona")["amount"].sum()
+    summary["income"] = income_by_persona.reindex(summary.index).fillna(0).round(0)
+    summary["spend_per_income"] = (summary["spend"] / summary["income"]).round(2)
+
+    print("\nBehaviour by persona (BDT):")
     print(
-        earners.groupby("occupation")["monthly_income_base"]
-        .agg(["count", "mean", "min", "max"])
-        .round(0)
+        summary[["txns", "spend", "spend_per_txn", "income", "spend_per_income", "cash_share"]]
         .to_string()
     )
+
+    late = outflows.assign(late=outflows["timestamp"].dt.day >= 23)
+    print("\nLate-month share of spending (day >= 23):")
+    print(late.groupby("persona")["late"].mean().round(3).sort_values(ascending=False).to_string())
+
+    print("\nCategory mix (top 8):")
+    print(outflows["category"].value_counts().head(8).to_string())
 
     print(f"\nHistory window: {START_DATE} to {end_of_history_date()} ({MONTHS} months)")
     print(f"Seed: {SEED}")
@@ -482,15 +1197,21 @@ def report(users: pd.DataFrame, wallets: pd.DataFrame) -> None:
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    months = month_starts()
+
     users = generate_users(NUM_USERS)
     wallets = generate_wallets(users)
+    income = generate_all_income(users, months)
+    transactions = generate_transactions(users, wallets, income, months)
 
-    validate(users, wallets)
+    validate(users, wallets, income, transactions)
 
     users.to_csv(OUTPUT_DIR / "users.csv", index=False)
     wallets.to_csv(OUTPUT_DIR / "wallets.csv", index=False)
+    income.to_csv(OUTPUT_DIR / "income_events.csv", index=False)
+    transactions.to_csv(OUTPUT_DIR / "transactions.csv", index=False)
 
-    report(users, wallets)
+    report(users, wallets, income, transactions)
 
 
 if __name__ == "__main__":
