@@ -1,1 +1,1 @@
-transaction_id,user_id,wallet_id,timestamp,transaction_type,direction,amount,category,subcategory,merchant_type,channel,cash_out,balance_after
+transaction_id,user_id,wallet_id,timestamp,transaction_type,direction,amount,category,subcategory,merchant_type,channel,cash_out,balance_after,related_transaction_id,income_event_id,fee_amount

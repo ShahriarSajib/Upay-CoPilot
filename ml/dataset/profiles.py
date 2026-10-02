@@ -9,6 +9,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .config import TRANSFER_TYPES
+
 PROFILE_COLUMNS = [
     "user_id",
     "monthly_income_avg",
@@ -27,6 +29,7 @@ def build_financial_profiles(
     """Compute one profile row per user from their transaction history."""
     frame = transactions.copy()
     frame["period"] = frame["timestamp"].dt.strftime("%Y-%m")
+    frame = frame[~frame["transaction_type"].isin(TRANSFER_TYPES)]
     frame = frame[frame["category"] != "cash"]
 
     income = (

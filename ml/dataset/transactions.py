@@ -1,9 +1,17 @@
 """Transaction ledger generation (Steps 5 and 8).
 
-The ledger is double-entry per wallet: income credits the upay wallet, cash-outs
-move money from upay into the cash wallet, and spending debits whichever wallet
-funded it. ``balance_after`` is a true running balance and never goes negative,
-because Step 5 forbids an overdraft.
+The ledger is double entry. Every movement is recorded on exactly one wallet, so
+``opening_balance + inflows - outflows = balance_after`` holds per wallet with
+no negative balance, because Step 5 forbids overdrafting and there is no credit
+facility.
+
+Three kinds of movement move money *between* wallets and are recorded as two
+linked rows sharing a ``related_transaction_id``:
+
+- cash out / cash in (same user, upay wallet to cash wallet)
+- send money / receive money (different users, upay wallet to upay wallet)
+
+Everything else is a single row against one wallet.
 """
 
 from __future__ import annotations
@@ -13,7 +21,15 @@ import pandas as pd
 
 from .config import (
     ANOMALY_KINDS,
+    CASH_OUT_EVENTS_PER_MONTH,
+    CASH_OUT_SHARE,
     CATEGORY_TICKET_FRACTION,
+    P2P_ACTIVE_SHARE,
+    P2P_AMOUNT_FRACTION,
+    P2P_FEE_FLAT,
+    P2P_FEE_PERCENT,
+    P2P_SENDS_PER_USER_MONTH,
+    PERSONA_P2P_RATE,
     PERSONA_TRANSACTION_COUNT,
     TRANSACTION_CATEGORIES,
 )
@@ -75,6 +91,14 @@ def sample_day(rng: np.random.Generator, persona: str, dim: int) -> int:
     return int(rng.choice(days, p=weights / weights.sum()))
 
 
+def _random_timestamp(rng: np.random.Generator, month: pd.Timestamp) -> pd.Timestamp:
+    return month + pd.Timedelta(
+        days=int(rng.integers(0, month.days_in_month)),
+        hours=int(rng.integers(6, 23)),
+        minutes=int(rng.integers(0, 60)),
+    )
+
+
 def generate_transactions(
     rng: np.random.Generator,
     users: pd.DataFrame,
@@ -82,28 +106,51 @@ def generate_transactions(
     income: pd.DataFrame,
     recurring: pd.DataFrame,
     months: list[pd.Timestamp],
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Generate the transaction log and the injected-pattern ground truth.
 
-    Returns ``(transactions, patterns)`` where ``patterns`` records exactly
-    what was deliberately injected, per user and month.
+    Returns ``(transactions, patterns, wallets)``. The wallet frame is returned
+    because cash wallets are added here for any user who lacked one, since a
+    user with no cash wallet could not have any cash activity.
     """
-    wallet_map = (
+    upay_wallet = (
         wallets[wallets["wallet_type"] == "upay"].set_index("user_id")["wallet_id"].to_dict()
     )
-    cash_map = (
+    cash_wallet_of = (
         wallets[wallets["wallet_type"] == "cash"].set_index("user_id")["wallet_id"].to_dict()
     )
-    opening_by_wallet = {
-        row.wallet_id: float(row.opening_balance) for row in wallets.itertuples()
-    }
 
     events: list[dict] = []
-    cash_pair_counter = 0
+    pair_counter = 0
+    cash_available: dict[str, float] = {}
 
-    def emit(user_id, wallet_id, timestamp, transaction_type, direction, amount,
-             category, subcategory, merchant_type, channel, cash_out_flag, order,
-             pair_id=None, recurring_id=None, is_anomaly=False, pattern_kind=None):
+    def next_pair_id(prefix: str) -> str:
+        nonlocal pair_counter
+        pair_counter += 1
+        return f"{prefix}{pair_counter:08d}"
+
+    def emit(
+        user_id,
+        wallet_id,
+        timestamp,
+        transaction_type,
+        direction,
+        amount,
+        category,
+        subcategory,
+        merchant_type,
+        channel,
+        cash_out_flag,
+        order,
+        pair_id=None,
+        pair_role=None,
+        cross_user=False,
+        recurring_id=None,
+        income_event_id=None,
+        is_anomaly=False,
+        pattern_kind=None,
+        fee_amount=0.0,
+    ):
         events.append({
             "user_id": user_id,
             "wallet_id": wallet_id,
@@ -117,25 +164,61 @@ def generate_transactions(
             "channel": channel,
             "cash_out": cash_out_flag,
             "recurring_id": recurring_id,
+            "income_event_id": income_event_id,
             "is_anomaly": is_anomaly,
             "pattern_kind": pattern_kind,
+            "fee_amount": round(float(fee_amount), 2),
+            "pair_id": pair_id,
+            "pair_role": pair_role,
+            "cross_user": cross_user,
             "_order": order,
-            "_pair_id": pair_id,
         })
 
     income_groups = {uid: grp for uid, grp in income.groupby("user_id")}
     recurring_groups = (
         {uid: grp for uid, grp in recurring.groupby("user_id")} if len(recurring) else {}
     )
+    opening_by_wallet = {
+        row.wallet_id: float(row.opening_balance) for row in wallets.itertuples()
+    }
 
+    # Cash is the everyday medium for a large share of spending, so virtually
+    # every user needs a cash wallet. Without one they could have no cash
+    # activity at all.
+    added_wallets: list[dict] = []
+    for user in users.itertuples():
+        if user.user_id in cash_wallet_of:
+            continue
+        opening = round(
+            opening_by_wallet[upay_wallet[user.user_id]] * float(rng.uniform(0.05, 0.25)), 2
+        )
+        cash_id = f"CW{user.user_id[1:]}"
+        added_wallets.append({
+            "wallet_id": cash_id,
+            "user_id": user.user_id,
+            "wallet_type": "cash",
+            "opening_balance": opening,
+        })
+        opening_by_wallet[cash_id] = opening
+        cash_wallet_of[user.user_id] = cash_id
+
+    if added_wallets:
+        wallets = pd.concat([wallets, pd.DataFrame(added_wallets)], ignore_index=True)
+
+    for user in users.itertuples():
+        cash_wallet = cash_wallet_of.get(user.user_id)
+        cash_available[user.user_id] = opening_by_wallet.get(cash_wallet, 0.0)
+
+    # ------------------------------------------------------------------
+    # Per user, per month: income, bills, discretionary spend, anomalies
+    # ------------------------------------------------------------------
     for user in users.itertuples():
         user_id = user.user_id
         persona = user.persona
-        primary_wallet = wallet_map[user_id]
-        cash_wallet = cash_map.get(user_id)
+        primary_wallet = upay_wallet[user_id]
+        cash_wallet = cash_wallet_of.get(user_id)
         income_base = float(user.monthly_income_base)
         expense_ratio = float(user.expense_ratio)
-        cash_out_rate = float(user.cash_out_rate)
         anomaly_rate = float(user.anomaly_rate)
         digital_ratio = float(user.digital_ratio)
 
@@ -151,8 +234,6 @@ def generate_transactions(
         )
         category_probs = category_probs / category_probs.sum()
         low_count, high_count = PERSONA_TRANSACTION_COUNT[persona]
-
-        cash_available = opening_by_wallet.get(cash_wallet, 0.0) if cash_wallet else 0.0
 
         for month in months:
             month_end = month + pd.offsets.MonthBegin(1)
@@ -226,30 +307,33 @@ def generate_transactions(
 
             # Injected anomalies (Step 8): rare, large, and explicitly labelled.
             if rng.random() < anomaly_rate:
-                n_shocks = int(rng.integers(1, 4))
-                for _ in range(n_shocks):
+                for _ in range(int(rng.integers(1, 4))):
                     kind = str(rng.choice(ANOMALY_KINDS))
                     if kind == "duplicate_charge":
                         category = str(rng.choice(["shopping", "food", "entertainment"]))
-                        amount = round(float(rng.uniform(0.15, 0.45)) * max(month_income, 4_000.0), 2)
+                        amount = round(
+                            float(rng.uniform(0.15, 0.45)) * max(month_income, 4_000.0), 2
+                        )
                     elif kind == "unusual_merchant":
                         category = "other"
-                        amount = round(float(rng.uniform(0.10, 0.35)) * max(month_income, 4_000.0), 2)
+                        amount = round(
+                            float(rng.uniform(0.10, 0.35)) * max(month_income, 4_000.0), 2
+                        )
                     elif kind == "round_number_spike":
                         category = str(rng.choice(["shopping", "other"]))
-                        amount = round(float(rng.uniform(0.20, 0.60)) * max(month_income, 5_000.0), 2)
+                        amount = round(
+                            float(rng.uniform(0.20, 0.60)) * max(month_income, 5_000.0), 2
+                        )
                     else:
-                        category = str(rng.choice(["health", "family", "other"], p=[0.45, 0.40, 0.15]))
+                        category = str(
+                            rng.choice(["health", "family", "other"], p=[0.45, 0.40, 0.15])
+                        )
                         amount = round(
                             float(rng.uniform(0.25, 0.85)) * max(month_income, 5_000.0), 2
                         )
 
                     planned.append({
-                        "timestamp": month + pd.Timedelta(
-                            days=int(rng.integers(1, dim + 1)) - 1,
-                            hours=int(rng.integers(9, 22)),
-                            minutes=int(rng.integers(0, 60)),
-                        ),
+                        "timestamp": _random_timestamp(rng, month),
                         "category": category,
                         "amount": amount,
                         "type": "payment",
@@ -261,14 +345,14 @@ def generate_transactions(
 
             timeline: list[dict] = []
             for event in month_events.itertuples():
-                sub = "salary_credit" if event.income_type == "salary" else "p2p"
                 timeline.append({
                     "timestamp": event.timestamp,
                     "category": "transfer",
                     "amount": float(event.amount),
                     "type": "transfer",
-                    "subcategory": sub,
+                    "subcategory": event.income_type,
                     "recurring_id": None,
+                    "income_event_id": event.income_id,
                     "is_anomaly": False,
                     "is_income": True,
                 })
@@ -276,14 +360,26 @@ def generate_transactions(
                 timeline.append({**item, "is_income": False})
             timeline.sort(key=lambda item: item["timestamp"])
 
-            n_cashouts = int(rng.binomial(6, cash_out_rate)) if cash_wallet else 0
-            cash_schedule: dict[int, float] = {}
-            if n_cashouts:
-                share = float(rng.uniform(0.20, 0.55))
-                per_cashout = round(discretionary_budget * share / n_cashouts, 2)
-                for _ in range(n_cashouts):
-                    day = int(rng.integers(1, dim + 1))
-                    cash_schedule[day] = cash_schedule.get(day, 0.0) + per_cashout
+            # Cash-outs: salary arrives in the upay wallet, then most of it is
+            # drawn out and spent physically. This is one of the highest volume
+            # behaviours in a real mobile money account.
+            cash_plan: dict[int, float] = {}
+            if cash_wallet:
+                lo, hi = CASH_OUT_EVENTS_PER_MONTH[persona]
+                n_cashouts = int(rng.integers(lo, hi + 1))
+
+                cash_cap = max(discretionary_budget, 500.0) * 1.2
+                headroom = max(cash_cap - cash_available[user_id], 0.0)
+                desired = discretionary_budget * float(rng.uniform(*CASH_OUT_SHARE))
+                total = min(desired, headroom)
+
+                if n_cashouts > 0 and total >= 50.0:
+                    weights = rng.dirichlet(np.ones(n_cashouts) * 2.0)
+                    chosen_days = rng.choice(np.arange(1, dim + 1), size=n_cashouts, replace=False)
+                    for day, weight in zip(chosen_days, weights):
+                        amount = round(float(total * weight), 2)
+                        if amount >= 30.0:
+                            cash_plan[int(day)] = amount
 
             for item in timeline:
                 timestamp = item["timestamp"]
@@ -291,21 +387,28 @@ def generate_transactions(
                 category = item["category"]
                 amount = float(item["amount"])
 
-                if day in cash_schedule:
-                    withdraw = cash_schedule[day]
+                if day in cash_plan:
+                    withdraw = cash_plan[day]
+                    pair_id = next_pair_id("C")
                     cash_ts = timestamp - pd.Timedelta(hours=2)
-                    cash_pair_counter += 1
-                    pair_id = f"C{cash_pair_counter:08d}"
-                    emit(user_id, primary_wallet, cash_ts, "cash_out", "outflow",
-                         withdraw, "cash", "cash_out", "agent", "agent", True, 0, pair_id)
-                    emit(user_id, cash_wallet, cash_ts, "cash_in", "inflow",
-                         withdraw, "cash", "cash_out", "agent", "agent", True, 1, pair_id)
-                    cash_available += withdraw
+                    emit(
+                        user_id, primary_wallet, cash_ts, "cash_out", "outflow",
+                        withdraw, "cash", "cash_out", "agent", "agent", True,
+                        0, pair_id=pair_id, pair_role="out",
+                    )
+                    emit(
+                        user_id, cash_wallet, cash_ts, "cash_in", "inflow",
+                        withdraw, "cash", "cash_out", "agent", "agent", True,
+                        1, pair_id=pair_id, pair_role="in",
+                    )
+                    cash_available[user_id] += withdraw
 
                 if item["is_income"]:
-                    emit(user_id, primary_wallet, timestamp, "transfer", "inflow",
-                         amount, "transfer", item["subcategory"], "person", "bank",
-                         False, 0)
+                    emit(
+                        user_id, primary_wallet, timestamp, "transfer", "inflow",
+                        amount, "transfer", item["subcategory"], "person", "bank",
+                        False, 0, income_event_id=item["income_event_id"],
+                    )
                     continue
 
                 subcategory = item["subcategory"] or str(
@@ -313,7 +416,7 @@ def generate_transactions(
                 )
                 funded_by_cash = (
                     cash_wallet is not None
-                    and cash_available >= amount
+                    and cash_available[user_id] >= amount
                     and rng.random() < (1.0 - digital_ratio)
                 )
                 wallet_id = cash_wallet if funded_by_cash else primary_wallet
@@ -329,104 +432,226 @@ def generate_transactions(
                     channel, merchant_type = "upay", "merchant"
 
                 if funded_by_cash:
-                    cash_available -= amount
+                    cash_available[user_id] -= amount
 
-                emit(user_id, wallet_id, timestamp, item["type"], "outflow",
-                     amount, category, subcategory, merchant_type, channel,
-                     funded_by_cash, 0,
-                     recurring_id=item["recurring_id"],
-                     is_anomaly=item["is_anomaly"],
-                     pattern_kind=item.get("pattern_kind"))
+                emit(
+                    user_id, wallet_id, timestamp, item["type"], "outflow",
+                    amount, category, subcategory, merchant_type, channel,
+                    funded_by_cash, 0,
+                    recurring_id=item["recurring_id"],
+                    is_anomaly=item["is_anomaly"],
+                    pattern_kind=item.get("pattern_kind"),
+                )
+
+    # ------------------------------------------------------------------
+    # User to user transfers: "send money", upay id to upay id
+    # ------------------------------------------------------------------
+    user_ids = list(users["user_id"])
+    income_base = dict(zip(users["user_id"], users["monthly_income_base"]))
+    persona_of = dict(zip(users["user_id"], users["persona"]))
+
+    # Sends scale with the population, not with the number of months.
+    lo, hi = P2P_SENDS_PER_USER_MONTH
+    population = len(user_ids)
+
+    for month in months:
+        expected = population * float(rng.uniform(lo, hi))
+        for _ in range(int(rng.poisson(expected))):
+            sender, receiver = rng.choice(user_ids, size=2, replace=False)
+            if rng.random() > PERSONA_P2P_RATE[persona_of[sender]]:
+                continue
+            if rng.random() > float(rng.uniform(*P2P_ACTIVE_SHARE)):
+                continue
+
+            fraction = float(rng.uniform(*P2P_AMOUNT_FRACTION))
+            sender_income = float(income_base[sender])
+            amount = round(fraction * max(sender_income, 3_000.0), 2)
+            if amount < 50.0 or amount > sender_income * 0.9:
+                continue
+
+            fee = round(
+                amount * float(rng.uniform(*P2P_FEE_PERCENT))
+                + float(rng.uniform(*P2P_FEE_FLAT)),
+                2,
+            )
+            pair_id = next_pair_id("P")
+            timestamp = _random_timestamp(rng, month)
+
+            # Sender is debited the amount plus the transfer fee; the receiver
+            # only ever gets the amount, so the fee leaves the system.
+            emit(
+                sender, upay_wallet[sender], timestamp, "send_money", "outflow",
+                amount + fee, "transfer", "send_money", "person", "upay",
+                False, 0, pair_id=pair_id, pair_role="out", cross_user=True,
+                fee_amount=fee,
+            )
+            emit(
+                receiver, upay_wallet[receiver], timestamp, "receive_money", "inflow",
+                amount, "transfer", "receive_money", "person", "upay",
+                False, 1, pair_id=pair_id, pair_role="in", cross_user=True,
+            )
 
     transactions = replay_ledger(events, opening_by_wallet)
+    return transactions, _derive_patterns(transactions), wallets
 
-    # Derive ground truth from the rows that actually survived the ledger
-    # replay, so injected_patterns can never reference a dropped transaction.
-    pattern_columns = [
-        "user_id", "period", "pattern_type", "amount", "category", "timestamp",
-    ]
+
+def _derive_patterns(transactions: pd.DataFrame) -> pd.DataFrame:
+    """Ground truth read back from the rows that survived the ledger replay."""
+    columns = ["user_id", "period", "pattern_type", "amount", "category", "timestamp",
+               "transaction_id"]
     anomalies = transactions[transactions["is_anomaly"]]
-    if len(anomalies):
-        pattern_frame = anomalies[["user_id", "timestamp", "category", "amount"]].copy()
-        pattern_frame["period"] = pattern_frame["timestamp"].dt.strftime("%Y-%m")
-        pattern_frame["pattern_type"] = [
-            kind or "large_unplanned_charge" for kind in anomalies["pattern_type"]
-        ]
-        pattern_frame = pattern_frame[pattern_columns].reset_index(drop=True)
-    else:
-        pattern_frame = pd.DataFrame(columns=pattern_columns)
 
-    return transactions, pattern_frame
+    if not len(anomalies):
+        return pd.DataFrame(columns=columns)
+
+    frame = anomalies[["user_id", "timestamp", "category", "amount", "transaction_id"]].copy()
+    frame["period"] = frame["timestamp"].dt.strftime("%Y-%m")
+    frame["pattern_type"] = [
+        kind or "large_unplanned_charge" for kind in anomalies["pattern_type"]
+    ]
+    return frame[columns].reset_index(drop=True)
+
+
+def _replay_user(
+    events: list[tuple[int, dict]],
+    balances: dict[str, float],
+    blocked: set[int] | None = None,
+):
+    """Replay one user's events, returning balance_after per event index.
+
+    An outflow that the wallet cannot fund is dropped, because Step 5 requires
+    ``balance_after >= 0``. Cash pairs are atomic: if the withdrawal fails, the
+    matching deposit is dropped with it. Indices in ``blocked`` are permanently
+    dropped, which is how a cross-user transfer whose sender could not afford it
+    is removed from the receiver's ledger too.
+    """
+    working = dict(balances)
+    kept: dict[int, float] = {}
+    pair_ok: dict[str, bool] = {}
+
+    for index, event in events:
+        if blocked and index in blocked:
+            kept[index] = None
+            continue
+
+        pair_id = event["pair_id"]
+
+        if event["pair_role"] == "in" and pair_id is not None and pair_ok.get(pair_id) is False:
+            kept[index] = None
+            continue
+
+        amount = event["amount"]
+        if event["direction"] == "outflow" and working[event["wallet_id"]] - amount < -1e-9:
+            kept[index] = None
+            if pair_id is not None:
+                pair_ok[pair_id] = False
+            continue
+
+        signed = amount if event["direction"] == "inflow" else -amount
+        working[event["wallet_id"]] = round(working[event["wallet_id"]] + signed, 2)
+        kept[index] = working[event["wallet_id"]]
+
+        if pair_id is not None:
+            pair_ok[pair_id] = True
+
+    return kept
 
 
 def replay_ledger(events: list[dict], opening_by_wallet: dict[str, float]) -> pd.DataFrame:
-    """Replay events chronologically and compute exact running balances.
-
-    A purchase that cannot be funded is dropped rather than allowed to push the
-    wallet negative, because Step 5 requires ``balance_after >= 0``.
-    """
+    """Replay all events chronologically and compute exact running balances."""
     events.sort(key=lambda e: (e["user_id"], e["timestamp"], e["_order"], e["amount"]))
 
-    balances = dict(opening_by_wallet)
+    by_user: dict[str, list[tuple[int, dict]]] = {}
+    for index, event in enumerate(events):
+        by_user.setdefault(event["user_id"], []).append((index, event))
+
+    surviving: dict[int, float] = {}
+    dropped = 0
+
+    for user_events in by_user.values():
+        balances = {
+            event["wallet_id"]: opening_by_wallet[event["wallet_id"]]
+            for _, event in user_events
+        }
+        surviving.update(_replay_user(user_events, balances))
+
+    # A cross-user pair is atomic across users: if the sender could not afford
+    # the transfer, the receiver must not receive it either.
+    cross_pairs: dict[str, dict[str, int]] = {}
+    for index, event in enumerate(events):
+        if event["cross_user"] and event["pair_id"] is not None:
+            role = "out" if event["pair_role"] == "out" else "in"
+            cross_pairs.setdefault(event["pair_id"], {})[role] = index
+
+    blocked: set[int] = set()
+    for pair in cross_pairs.values():
+        out_index, in_index = pair.get("out"), pair.get("in")
+        if out_index is None or in_index is None:
+            continue
+        if surviving.get(out_index) is None and surviving.get(in_index) is not None:
+            blocked.add(in_index)
+
+    # Recompute balances for the receivers who lost an inflow. The blocked index
+    # must stay blocked, otherwise the replay would simply recreate it.
+    for user_id in {events[index]["user_id"] for index in blocked}:
+        user_events = by_user[user_id]
+        balances = {
+            event["wallet_id"]: opening_by_wallet[event["wallet_id"]]
+            for _, event in user_events
+        }
+        surviving.update(_replay_user(user_events, balances, blocked))
+
+    dropped = sum(1 for value in surviving.values() if value is None)
+    print(f"  unaffordable movements skipped (wallet would go negative): {dropped}")
+
     rows: list[dict] = []
-    row_index: dict[str, int] = {}
-    skipped = 0
+    key_to_id: dict[int, str] = {}
+    pair_to_ids: dict[str, list[str]] = {}
+    position = 0
 
-    for event in events:
-        wallet_id = event["wallet_id"]
-        amount = event["amount"]
-        direction = event["direction"]
-        balance = balances[wallet_id]
-        signed = amount if direction == "inflow" else -amount
-
-        if direction == "outflow" and balance - amount < 0:
-            skipped += 1
+    for index, event in enumerate(events):
+        balance = surviving.get(index)
+        if balance is None:
             continue
 
-        pair_id = event["_pair_id"]
-        if pair_id is not None and direction == "inflow" and pair_id not in row_index:
-            # Its matching withdrawal was dropped for lack of funds.
-            skipped += 1
-            continue
+        position += 1
+        transaction_id = f"T{position:08d}"
+        key_to_id[index] = transaction_id
+        if event["pair_id"] is not None:
+            pair_to_ids.setdefault(event["pair_id"], []).append(transaction_id)
 
-        new_balance = round(balance + signed, 2)
-        balances[wallet_id] = new_balance
-
-        position = len(rows)
         rows.append({
-            "transaction_id": f"T{position + 1:08d}",
+            "transaction_id": transaction_id,
             "user_id": event["user_id"],
-            "wallet_id": wallet_id,
+            "wallet_id": event["wallet_id"],
             "timestamp": event["timestamp"],
             "transaction_type": event["transaction_type"],
-            "direction": direction,
-            "amount": amount,
+            "direction": event["direction"],
+            "amount": event["amount"],
             "category": event["category"],
             "subcategory": event["subcategory"],
             "merchant_type": event["merchant_type"],
             "channel": event["channel"],
             "cash_out": event["cash_out"],
-            "balance_after": new_balance,
+            "balance_after": balance,
+            "related_transaction_id": None,
+            "income_event_id": event["income_event_id"],
             "recurring_id": event["recurring_id"],
+            "fee_amount": event["fee_amount"],
             "is_anomaly": event["is_anomaly"],
             "pattern_type": event["pattern_kind"] or "",
+            "_pair_id": event["pair_id"],
         })
-        if pair_id is not None:
-            row_index[pair_id] = position
 
-    print(f"  unaffordable purchases skipped (wallet would go negative): {skipped}")
+    # Both cash pairs and send-money pairs are linked in both directions.
+    for row in rows:
+        ids = pair_to_ids.get(row["_pair_id"], [])
+        if len(ids) != 2:
+            continue
+        row["related_transaction_id"] = ids[0] if row["transaction_id"] == ids[1] else ids[1]
 
-    frame = pd.DataFrame(rows)
+    frame = pd.DataFrame(rows).drop(columns=["_pair_id"])
     if not frame.empty:
         frame["cash_out"] = frame["cash_out"].astype(bool)
         frame["is_anomaly"] = frame["is_anomaly"].astype(bool)
-        return frame
-
-    return pd.DataFrame(
-        columns=[
-            "transaction_id", "user_id", "wallet_id", "timestamp", "transaction_type",
-            "direction", "amount", "category", "subcategory", "merchant_type",
-            "channel", "cash_out", "balance_after", "recurring_id", "is_anomaly",
-            "pattern_type",
-        ]
-    )
+    return frame

@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .config import LABEL_THRESHOLDS
+from .config import LABEL_THRESHOLDS, TRANSFER_TYPES
 
 LABEL_COLUMNS = [
     "user_id",
@@ -44,6 +44,9 @@ def build_behavior_labels(
     """Derive per-user, per-month behavioural ground truth from observed data."""
     frame = transactions.copy()
     frame["period"] = frame["timestamp"].dt.strftime("%Y-%m")
+    # Cash legs and user-to-user transfers are movements, not income or
+    # consumption. Excluding both directions prevents double counting.
+    frame = frame[~frame["transaction_type"].isin(TRANSFER_TYPES)]
     frame["is_transfer"] = frame["category"] == "cash"
 
     # Consumption excludes internal cash transfers in both directions.

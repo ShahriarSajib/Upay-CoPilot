@@ -88,7 +88,7 @@ TRANSACTION_CATEGORIES = {
     "family": ["family_support", "gift"],
     "housing": ["rent", "maintenance"],
     "cash": ["cash_out"],
-    "transfer": ["salary_credit", "goal_saving", "self_transfer", "p2p"],
+    "transfer": ["salary", "business", "freelance", "allowance", "send_money", "receive_money"],
     "other": ["misc"],
 }
 
@@ -96,6 +96,8 @@ TRANSACTION_TYPES = [
     "payment",
     "cash_out",
     "cash_in",
+    "send_money",
+    "receive_money",
     "transfer",
     "bill_payment",
     "mobile_recharge",
@@ -253,6 +255,70 @@ GOAL_MONTHS_TO_TARGET = {
     "family": (4, 12),
     "other": (2, 8),
 }
+
+# ---------------------------------------------------------------------------
+# Cash-in / cash-out behaviour (mobile financial services)
+#
+# Cash handling is one of the most frequent things a user does: salary comes
+# into the upay wallet, then most of it is cashed out and spent physically.
+# The persona rate is the per-month probability of each cash-out event, so
+# cash-heavy personas produce many more pairs.
+# ---------------------------------------------------------------------------
+
+CASH_OUT_EVENTS_PER_MONTH = {
+    "stable_saver": (1, 3),
+    "end_month_shortage": (2, 5),
+    "irregular_income": (2, 6),
+    "high_cash_dependency": (6, 14),
+    "goal_oriented": (1, 4),
+    "seasonal_spender": (2, 5),
+    "sudden_anomaly": (2, 5),
+    "financial_pressure": (3, 7),
+}
+
+# Share of the month's spending budget moved into physical cash.
+CASH_OUT_SHARE = (0.30, 0.75)
+
+# How often the leftover cash is brought back into the digital wallet.
+CASH_IN_PERIODS = ("month_start", "payday", "random")
+
+# ---------------------------------------------------------------------------
+# User to user transfers ("send money", upay id to upay id)
+#
+# Every send produces two linked ledger rows: a send_money outflow on the
+# sender's upay wallet and a receive_money inflow on the receiver's upay
+# wallet. These are excluded from income and consumption aggregates because
+# moving money between people is neither earning nor spending.
+# ---------------------------------------------------------------------------
+
+# Expected user-to-user sends per user per month, before the persona multiplier.
+P2P_SENDS_PER_USER_MONTH = (0.3, 2.2)
+
+# A sender cannot send to themselves, so this is the fraction of the population
+# that takes part in transfers at all.
+P2P_ACTIVE_SHARE = (0.35, 0.75)
+
+# Transfer size as a fraction of the sender's monthly income.
+P2P_AMOUNT_FRACTION = (0.01, 0.18)
+
+# upay charges a fee on send money: a small flat fee plus a percentage.
+P2P_FEE_FLAT = (2.0, 15.0)
+P2P_FEE_PERCENT = (0.001, 0.006)
+
+# Sending is more common for some personas than others.
+PERSONA_P2P_RATE = {
+    "stable_saver": 1.00,
+    "end_month_shortage": 1.15,
+    "irregular_income": 1.05,
+    "high_cash_dependency": 1.30,
+    "goal_oriented": 1.20,
+    "seasonal_spender": 1.35,
+    "sudden_anomaly": 0.95,
+    "financial_pressure": 1.40,
+}
+
+# Transaction types that move money without being income or consumption.
+TRANSFER_TYPES = {"send_money", "receive_money"}
 
 # ---------------------------------------------------------------------------
 # Seasonality and anomalies (Step 8)

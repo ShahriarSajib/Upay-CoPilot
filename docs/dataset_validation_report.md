@@ -9,31 +9,40 @@ DATASET VALIDATION REPORT
   behavior_labels_rows                           4500
   financial_goals_rows                           542
   financial_profiles_rows                        500
-  goal_contributions_rows                        2693
+  goal_contributions_rows                        2642
   income_events_rows                             6939
-  injected_patterns_rows                         755
+  injected_patterns_rows                         753
   recurring_expenses_rows                        1399
-  transactions_rows                              157782
+  transactions_rows                              191167
   users_rows                                     500
-  wallets_rows                                   1159
+  wallets_rows                                   1468
   negative_balances                              0
   max_balance_drift                              0.0
-  cash_transfer_legs                             8308
+  cash_transfer_pairs                            17826
+  cash_transfer_legs                             35652
+  cash_out_share_of_rows                         0.1865
+  users_with_cash_activity                       477
+  send_money_pairs                               2437
+  send_money_total                               13752460.2
+  send_money_fees                                69385.24
+  unique_senders                                 495
+  unique_receivers                               497
   income_event_total                             261286655.76
   credited_income_total                          261286655.76
+  income_events_linked                           6939/6939
   goals                                          542
   goals_contributed_to                           457
-  goal_contribution_total                        21581155.06
+  goal_contribution_total                        20840573.83
   goal_current_amount_exact                      True
   recurring_expenses                             1399
   recurring_with_payments                        100.0%
-  late_month_share_by_persona                    {'end_month_shortage': 0.46, 'financial_pressure': 0.322, 'goal_oriented': 0.256, 'high_cash_dependency': 0.254, 'irregular_income': 0.269, 'seasonal_spender': 0.378, 'stable_saver': 0.175, 'sudden_anomaly': 0.267}
-  mean_transaction_by_persona                    {'end_month_shortage': 1550.0, 'financial_pressure': 697.0, 'goal_oriented': 1657.0, 'high_cash_dependency': 1430.0, 'irregular_income': 1784.0, 'seasonal_spender': 2166.0, 'stable_saver': 1436.0, 'sudden_anomaly': 2934.0}
-  anomaly_transactions                           755
-  anomaly_avg_ticket                             21388.19
-  normal_avg_ticket                              3325.89
-  observed_cash_spend_share                      0.106
-  label_positive_rate                            {'end_month_shortage_label': 0.266, 'high_cash_dependency_label': 0.074, 'irregular_income_label': 0.1, 'overspending_label': 0.15, 'goal_progress_label': 0.339, 'financial_pressure_label': 0.15}
+  late_month_share_by_persona                    {'end_month_shortage': 0.447, 'financial_pressure': 0.334, 'goal_oriented': 0.246, 'high_cash_dependency': 0.264, 'irregular_income': 0.272, 'seasonal_spender': 0.372, 'stable_saver': 0.194, 'sudden_anomaly': 0.259}
+  mean_transaction_by_persona                    {'end_month_shortage': 1583.0, 'financial_pressure': 708.0, 'goal_oriented': 1732.0, 'high_cash_dependency': 1457.0, 'irregular_income': 1886.0, 'seasonal_spender': 2223.0, 'stable_saver': 1527.0, 'sudden_anomaly': 3191.0}
+  anomaly_transactions                           753
+  anomaly_avg_ticket                             22042.63
+  normal_avg_ticket                              3241.83
+  observed_cash_spend_share                      0.291
+  label_positive_rate                            {'end_month_shortage_label': 0.271, 'high_cash_dependency_label': 0.282, 'irregular_income_label': 0.128, 'overspending_label': 0.114, 'goal_progress_label': 0.337, 'financial_pressure_label': 0.114}
 
 PASSED: all structural, ledger and relationship checks
 ====================================================================

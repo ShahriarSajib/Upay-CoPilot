@@ -19,7 +19,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ml.dataset.config import SEED, START_DATE
+from ml.dataset.config import LABEL_THRESHOLDS, SEED, START_DATE, TRANSFER_TYPES
 from ml.dataset.goals import monthly_surplus
 from ml.dataset.labels import build_behavior_labels
 from ml.dataset.leakage import run_leakage_check
@@ -143,28 +143,55 @@ class TestLedgerIntegrity(unittest.TestCase):
                 self.assertTrue((self.tables[name]["amount"] > 0).all())
 
     def test_cash_transfers_are_matched_pairs(self):
-        cash = self.tables["transactions"]
-        cash = cash[cash["category"] == "cash"]
-        outflows = cash[cash["direction"] == "outflow"].groupby(
-            ["user_id", "timestamp", "amount"]
-        ).size()
-        inflows = cash[cash["direction"] == "inflow"].groupby(
-            ["user_id", "timestamp", "amount"]
-        ).size()
-        self.assertTrue(outflows.equals(inflows))
+        transactions = self.tables["transactions"]
+        out = transactions[transactions["transaction_type"] == "cash_out"]
+        into = transactions[transactions["transaction_type"] == "cash_in"]
 
-    def test_income_events_are_credited_to_the_ledger(self):
-        events = round(float(self.tables["income_events"]["amount"].sum()), 2)
-        credited = round(
-            float(
-                self.tables["transactions"][
-                    (self.tables["transactions"]["category"] == "transfer")
-                    & (self.tables["transactions"]["direction"] == "inflow")
-                ]["amount"].sum()
-            ),
-            2,
+        self.assertEqual(len(out), len(into))
+        self.assertTrue(out["related_transaction_id"].notna().all())
+
+        linked = out.merge(
+            into,
+            left_on="related_transaction_id",
+            right_on="transaction_id",
+            suffixes=("_out", "_in"),
         )
-        self.assertAlmostEqual(events, credited, places=2)
+        self.assertEqual(len(linked), len(out))
+        self.assertTrue((linked["amount_out"] - linked["amount_in"]).abs().lt(0.01).all())
+        self.assertTrue((linked["user_id_out"] == linked["user_id_in"]).all())
+        self.assertTrue((linked["wallet_id_out"] != linked["wallet_id_in"]).all())
+
+    def test_cash_volume_is_a_real_share_of_activity(self):
+        """Cash handling is high volume in a real mobile money account."""
+        transactions = self.tables["transactions"]
+        legs = transactions["transaction_type"].isin(["cash_in", "cash_out"]).sum()
+        share = legs / len(transactions)
+        self.assertGreater(share, 0.10, "cash activity should be a large share of rows")
+        self.assertGreater(transactions["user_id"].nunique() * 0.8, 0)
+
+    def test_every_income_event_is_credited_exactly_once(self):
+        income = self.tables["income_events"]
+        credited = self.tables["transactions"][
+            self.tables["transactions"]["income_event_id"].notna()
+        ]
+
+        self.assertEqual(len(credited), len(income))
+        self.assertFalse(credited["income_event_id"].duplicated().any())
+        self.assertTrue((credited["direction"] == "inflow").all())
+
+        linked = credited.merge(
+            income,
+            left_on="income_event_id",
+            right_on="income_id",
+            suffixes=("_txn", "_ev"),
+        )
+        self.assertTrue((linked["amount_txn"] - linked["amount_ev"]).abs().lt(0.01).all())
+        self.assertTrue((linked["user_id_txn"] == linked["user_id_ev"]).all())
+
+    def test_income_event_ids_resolve(self):
+        known = set(self.tables["income_events"]["income_id"])
+        used = set(self.tables["transactions"]["income_event_id"].dropna())
+        self.assertTrue(used <= known)
 
     def test_chronology_is_monotonic_within_each_wallet(self):
         transactions = self.tables["transactions"].sort_values(
@@ -204,6 +231,123 @@ class TestRecurringExpenses(unittest.TestCase):
         self.assertTrue(
             (pd.to_datetime(recurring["next_due_date"]) > pd.Timestamp("2026-09-30")).all()
         )
+
+
+class TestSendMoneyTransfers(unittest.TestCase):
+    """User to user "send money": upay id to upay id."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tables = sample_dataset()
+        transactions = cls.tables["transactions"]
+        cls.sent = transactions[transactions["transaction_type"] == "send_money"]
+        cls.received = transactions[transactions["transaction_type"] == "receive_money"]
+
+    def test_both_legs_exist_in_equal_numbers(self):
+        self.assertGreater(len(self.sent), 0, "no user-to-user transfers were generated")
+        self.assertEqual(len(self.sent), len(self.received))
+
+    def test_every_send_links_to_exactly_one_receive(self):
+        self.assertTrue(self.sent["related_transaction_id"].notna().all())
+        self.assertTrue(self.received["related_transaction_id"].notna().all())
+
+        linked = self.sent.merge(
+            self.received,
+            left_on="related_transaction_id",
+            right_on="transaction_id",
+            suffixes=("_send", "_recv"),
+        )
+        self.assertEqual(len(linked), len(self.sent))
+
+    def test_transfers_link_two_different_users(self):
+        linked = self.sent.merge(
+            self.received,
+            left_on="related_transaction_id",
+            right_on="transaction_id",
+            suffixes=("_send", "_recv"),
+        )
+        self.assertTrue((linked["user_id_send"] != linked["user_id_recv"]).all())
+
+    def test_sender_pays_the_fee_and_receiver_gets_the_amount(self):
+        linked = self.sent.merge(
+            self.received,
+            left_on="related_transaction_id",
+            right_on="transaction_id",
+            suffixes=("_send", "_recv"),
+        )
+        difference = linked["amount_send"] - linked["amount_recv"]
+        self.assertTrue((difference > 0).all(), "fee must make the sender pay more")
+        self.assertTrue((linked["fee_amount_send"] > 0).all())
+        self.assertTrue((linked["fee_amount_recv"] == 0).all())
+        self.assertTrue(
+            (difference - linked["fee_amount_send"]).abs().lt(0.01).all(),
+            "sender amount must equal receiver amount plus the fee",
+        )
+
+    def test_direction_and_category_are_correct(self):
+        self.assertTrue((self.sent["direction"] == "outflow").all())
+        self.assertTrue((self.received["direction"] == "inflow").all())
+        self.assertTrue((self.sent["category"] == "transfer").all())
+        self.assertTrue((self.sent["subcategory"] == "send_money").all())
+        self.assertTrue((self.received["subcategory"] == "receive_money").all())
+
+    def test_transfers_go_between_upay_wallets(self):
+        wallets = self.tables["wallets"].set_index("wallet_id")["wallet_type"]
+        linked = self.sent.merge(
+            self.received,
+            left_on="related_transaction_id",
+            right_on="transaction_id",
+            suffixes=("_send", "_recv"),
+        )
+        self.assertTrue((linked["wallet_id_send"].map(wallets) == "upay").all())
+        self.assertTrue((linked["wallet_id_recv"].map(wallets) == "upay").all())
+
+    def test_transfers_are_not_counted_as_income_or_spending(self):
+        """A transfer between people is neither earning nor spending."""
+        self.assertGreater(len(self.received), 0)
+
+        surplus = monthly_surplus(self.tables["transactions"])
+        income = self.tables["income_events"].copy()
+        income["period"] = income["timestamp"].dt.strftime("%Y-%m")
+
+        # Income in the surplus calc must equal income_events only, so the
+        # receive_money inflows are excluded.
+        expected = income.groupby(["user_id", "period"])["amount"].sum().rename("expected")
+        actual = surplus.set_index(["user_id", "period"])["income"].rename("actual")
+        joined = pd.concat([expected, actual], axis=1).fillna(0.0)
+        self.assertTrue(
+            (joined["expected"] - joined["actual"]).abs().lt(0.01).all(),
+            "receive_money inflows leaked into income",
+        )
+
+        # Spending must exclude both cash legs and transfer legs.
+        transactions = self.tables["transactions"]
+        outflows = transactions[
+            (transactions["direction"] == "outflow")
+            & (transactions["category"] != "cash")
+            & (~transactions["transaction_type"].isin(TRANSFER_TYPES))
+        ].copy()
+        outflows["period"] = outflows["timestamp"].dt.strftime("%Y-%m")
+        expected_spend = (
+            outflows.groupby(["user_id", "period"])["amount"].sum().rename("expected")
+        )
+        actual_spend = surplus.set_index(["user_id", "period"])["spend"].rename("actual")
+        joined = pd.concat([expected_spend, actual_spend], axis=1).fillna(0.0)
+        self.assertTrue(
+            (joined["expected"] - joined["actual"]).abs().lt(0.01).all(),
+            "send_money outflows leaked into spending",
+        )
+
+    def test_no_orphaned_related_ids(self):
+        known = set(self.tables["transactions"]["transaction_id"])
+        referenced = set(self.tables["transactions"]["related_transaction_id"].dropna())
+        self.assertTrue(referenced <= known)
+
+    def test_links_are_symmetric(self):
+        by_id = self.tables["transactions"].set_index("transaction_id")
+        for row in self.sent.head(50).itertuples():
+            partner = by_id.loc[row.related_transaction_id]
+            self.assertEqual(partner.related_transaction_id, row.transaction_id)
 
 
 class TestGoals(unittest.TestCase):
@@ -280,8 +424,12 @@ class TestProfilesAndLabels(unittest.TestCase):
 
     def test_end_month_shortage_label_matches_late_spending(self):
         transactions = self.tables["transactions"]
+        # Mirror the label builder exactly: cash legs and user-to-user
+        # transfers are excluded from consumption.
         spend = transactions[
-            (transactions["direction"] == "outflow") & (transactions["category"] != "cash")
+            (transactions["direction"] == "outflow")
+            & (transactions["category"] != "cash")
+            & (~transactions["transaction_type"].isin(TRANSFER_TYPES))
         ].copy()
         spend["period"] = spend["timestamp"].dt.strftime("%Y-%m")
         spend["late"] = spend["timestamp"].dt.day >= 23
@@ -300,7 +448,12 @@ class TestProfilesAndLabels(unittest.TestCase):
         flagged = merged[merged["end_month_shortage_label"] == 1]["share"]
         unflagged = merged[merged["end_month_shortage_label"] == 0]["share"]
 
+        self.assertGreater(len(flagged), 0)
+        self.assertGreater(len(unflagged), 0)
+        # The threshold separates the two classes exactly.
         self.assertGreater(flagged.min(), unflagged.max())
+        self.assertGreaterEqual(flagged.min(), LABEL_THRESHOLDS["late_month_share"])
+        self.assertLessEqual(unflagged.max(), LABEL_THRESHOLDS["late_month_share"])
 
     def test_labels_do_not_reference_the_persona_column(self):
         """Labels must be derivable without reading the ground-truth persona."""

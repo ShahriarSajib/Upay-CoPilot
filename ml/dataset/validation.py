@@ -199,31 +199,159 @@ def check_ledger(tables: dict[str, pd.DataFrame], report: ValidationReport) -> N
     )
     report.stats["max_balance_drift"] = round(float(drift), 6)
 
-    # Cash-outs must appear as matched, equal-sized pairs on two wallets.
-    cash = transactions[transactions["category"] == "cash"]
-    out = cash[cash["direction"] == "outflow"].groupby(["user_id", "timestamp", "amount"]).size()
-    in_ = cash[cash["direction"] == "inflow"].groupby(["user_id", "timestamp", "amount"]).size()
-    report.check(
-        out.equals(in_),
-        "cash withdrawals and deposits are not matched one-to-one",
-    )
-    report.stats["cash_transfer_legs"] = len(cash)
+    _check_cash_pairs(transactions, report)
+    _check_send_money_pairs(transactions, report)
+    _check_income_links(tables, report)
 
-    income_total = round(float(tables["income_events"]["amount"].sum()), 2)
-    credited = round(
-        float(
-            transactions[
-                (transactions["category"] == "transfer") & (transactions["direction"] == "inflow")
-            ]["amount"].sum()
-        ),
-        2,
+
+def _check_cash_pairs(transactions: pd.DataFrame, report: ValidationReport) -> None:
+    """Cash out and cash in must be equal-sized, same-user, cross-wallet pairs."""
+    out = transactions[transactions["transaction_type"] == "cash_out"]
+    into = transactions[transactions["transaction_type"] == "cash_in"]
+
+    report.check(
+        len(out) == len(into),
+        f"cash_out rows ({len(out)}) != cash_in rows ({len(into)})",
+    )
+
+    if not len(out) or not len(into):
+        return
+
+    linked = out.merge(
+        into,
+        left_on="related_transaction_id",
+        right_on="transaction_id",
+        suffixes=("_out", "_in"),
+    )
+
+    unmatched = len(out) - len(linked)
+    report.check(
+        unmatched == 0,
+        f"{unmatched} cash withdrawals have no linked cash deposit",
+    )
+
+    same_amount = (linked["amount_out"] - linked["amount_in"]).abs()
+    report.check(
+        bool((same_amount < 0.01).all()),
+        f"{(same_amount >= 0.01).sum()} cash pairs have mismatched amounts",
     )
     report.check(
-        abs(income_total - credited) < 0.01,
-        f"credited salary/transfer income {credited} != income_events total {income_total}",
+        bool((linked["user_id_out"] == linked["user_id_in"]).all()),
+        "a cash pair spans two different users",
+    )
+    report.check(
+        bool((linked["wallet_id_out"] != linked["wallet_id_in"]).all()),
+        "a cash pair moved money within a single wallet instead of across two",
+    )
+
+    report.stats["cash_transfer_pairs"] = len(linked)
+    report.stats["cash_transfer_legs"] = int(len(out) + len(into))
+    report.stats["cash_out_share_of_rows"] = round(
+        2 * len(out) / max(len(transactions), 1), 4
+    )
+    report.stats["users_with_cash_activity"] = int(out["user_id"].nunique())
+
+
+def _check_send_money_pairs(transactions: pd.DataFrame, report: ValidationReport) -> None:
+    """send_money is user to user: two rows, two users, sender pays the fee."""
+    sent = transactions[transactions["transaction_type"] == "send_money"]
+    received = transactions[transactions["transaction_type"] == "receive_money"]
+
+    report.check(
+        len(sent) == len(received),
+        f"send_money rows ({len(sent)}) != receive_money rows ({len(received)})",
+    )
+
+    if not len(sent):
+        return
+
+    linked = sent.merge(
+        received,
+        left_on="related_transaction_id",
+        right_on="transaction_id",
+        suffixes=("_send", "_recv"),
+    )
+
+    report.check(
+        len(linked) == len(sent),
+        f"{len(sent) - len(linked)} sends have no linked receive",
+    )
+
+    report.check(
+        bool((linked["user_id_send"] != linked["user_id_recv"]).all()),
+        "a send_money pair involves the same user on both legs",
+    )
+
+    # The sender is debited amount + fee; the receiver gets the amount alone.
+    # Only the sender is charged, so the receiver's fee must be zero.
+    expected = linked["amount_send"] - linked["fee_amount_send"] - linked["amount_recv"]
+    report.check(
+        bool((expected.abs() < 0.01).all()),
+        f"{(expected.abs() >= 0.01).sum()} transfers where sender amount != receiver amount + fee",
+    )
+    report.check(
+        bool((linked["fee_amount_send"] > 0).all()),
+        "a send_money row has no fee",
+    )
+    report.check(
+        bool((sent["direction"] == "outflow").all()),
+        "send_money rows must be outflows",
+    )
+    report.check(
+        bool((received["direction"] == "inflow").all()),
+        "receive_money rows must be inflows",
+    )
+    report.check(
+        bool((received["fee_amount"] == 0).all()),
+        "a receive_money row was charged a fee; only the sender pays it",
+    )
+
+    report.stats["send_money_pairs"] = len(linked)
+    report.stats["send_money_total"] = round(float(linked["amount_send"].sum()), 2)
+    report.stats["send_money_fees"] = round(float(linked["fee_amount_send"].sum()), 2)
+    report.stats["unique_senders"] = int(sent["user_id"].nunique())
+    report.stats["unique_receivers"] = int(received["user_id"].nunique())
+
+
+def _check_income_links(tables: dict[str, pd.DataFrame], report: ValidationReport) -> None:
+    """Every income event must be credited exactly once, via income_event_id."""
+    income = tables["income_events"]
+    transactions = tables["transactions"]
+
+    credited = transactions[transactions["income_event_id"].notna()]
+    report.check(
+        bool((credited["direction"] == "inflow").all()),
+        "a transaction with an income_event_id is not an inflow",
+    )
+
+    linked = credited.merge(
+        income, left_on="income_event_id", right_on="income_id", suffixes=("_txn", "_ev")
+    )
+    report.check(
+        len(linked) == len(income),
+        f"{len(income) - len(linked)} income events are not credited in the ledger",
+    )
+    report.check(
+        bool((linked["amount_txn"] - linked["amount_ev"]).abs().lt(0.01).all()),
+        "a credited amount does not match its income event",
+    )
+    report.check(
+        bool((linked["user_id_txn"] == linked["user_id_ev"]).all()),
+        "an income event was credited to a different user",
+    )
+
+    duplicate = credited["income_event_id"].duplicated().sum()
+    report.check(duplicate == 0, f"{duplicate} income events are credited more than once")
+
+    income_total = round(float(income["amount"].sum()), 2)
+    credited_total = round(float(credited["amount"].sum()), 2)
+    report.check(
+        abs(income_total - credited_total) < 0.01,
+        f"credited income {credited_total} != income_events total {income_total}",
     )
     report.stats["income_event_total"] = income_total
-    report.stats["credited_income_total"] = credited
+    report.stats["credited_income_total"] = credited_total
+    report.stats["income_events_linked"] = f"{len(linked)}/{len(income)}"
 
 
 def check_vocabulary(tables: dict[str, pd.DataFrame], schemas, report: ValidationReport) -> None:
@@ -243,6 +371,37 @@ def check_vocabulary(tables: dict[str, pd.DataFrame], schemas, report: Validatio
     report.check(
         set(transactions["direction"]) <= {"inflow", "outflow"},
         "direction must be inflow or outflow",
+    )
+
+    # A user cannot send money to themselves.
+    self_transfer = transactions[transactions["transaction_type"] == "send_money"].merge(
+        transactions[transactions["transaction_type"] == "receive_money"],
+        left_on="related_transaction_id",
+        right_on="transaction_id",
+        suffixes=("_send", "_recv"),
+    )
+    report.check(
+        bool((self_transfer["user_id_send"] != self_transfer["user_id_recv"]).all()),
+        "a user sent money to themselves",
+    )
+
+    # related_transaction_id must always point at a real, different row.
+    known = set(transactions["transaction_id"])
+    dangling = set(transactions["related_transaction_id"].dropna()) - known
+    report.check(
+        not dangling,
+        f"related_transaction_id points at missing transactions {sorted(dangling)[:5]}",
+    )
+
+    self_reference = transactions[
+        transactions["related_transaction_id"] == transactions["transaction_id"]
+    ]
+    report.check(self_reference.empty, "a transaction is linked to itself")
+
+    paired = transactions[transactions["related_transaction_id"].notna()]
+    report.check(
+        bool((paired["related_transaction_id"].notna()).all()),
+        "a linked row has no partner",
     )
 
     bad_subcategory = [

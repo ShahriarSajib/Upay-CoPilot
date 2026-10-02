@@ -17,6 +17,7 @@ from .config import (
     GOAL_TYPES,
     PERSONA_GOAL_COUNT,
     PERSONA_GOAL_SHARE,
+    TRANSFER_TYPES,
 )
 
 PRIORITY_WEIGHTS = {"high": 0.45, "medium": 0.40, "low": 0.15}
@@ -30,6 +31,9 @@ def monthly_surplus(transactions: pd.DataFrame) -> pd.DataFrame:
     """
     frame = transactions.copy()
     frame["period"] = frame["timestamp"].dt.strftime("%Y-%m")
+    # Cash legs and user-to-user transfers move money between wallets; they are
+    # neither income nor consumption, so counting them would double count.
+    frame = frame[~frame["transaction_type"].isin(TRANSFER_TYPES)]
     frame = frame[frame["category"] != "cash"]
 
     income = (

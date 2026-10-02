@@ -66,7 +66,7 @@ def build_dataset(
     )
     print(f"  recurring_expenses={len(recurring)}")
 
-    transactions, patterns = generate_transactions(
+    transactions, patterns, wallets = generate_transactions(
         np.random.default_rng(seed + 3), users, wallets, income, recurring, months
     )
     print(f"  transactions={len(transactions)}")
