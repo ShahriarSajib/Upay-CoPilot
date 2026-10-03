@@ -19,8 +19,8 @@ env/
 
 # Data
 data/raw/
-data/generated/
-*.csv
+# data/generated/
+# *.csv
 *.parquet
 *.pkl
 *.joblib
