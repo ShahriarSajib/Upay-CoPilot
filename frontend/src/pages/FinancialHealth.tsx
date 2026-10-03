@@ -1,0 +1,235 @@
+import { Link } from "react-router-dom";
+import { ArrowRight, Info, TrendingDown, TrendingUp } from "lucide-react";
+import { useBundle } from "@/hooks/useBundle";
+import { useCopilot, useFmt } from "@/data/store";
+import { t as copy } from "@/i18n";
+import { Banner, Card, CardHeader, Chip, Grid, Meter, PageHeader, Stat, Table, cx } from "@/components/ui";
+import { EvidenceBody } from "@/components/Evidence";
+import { MonthlyFlowChart, Panel } from "@/components/charts";
+import { bandFor } from "@/lib/format";
+
+const BAND_LABEL = {
+  strong: { en: "Strong position", bn: "শক্তিশালী অবস্থান" },
+  good: { en: "Good position", bn: "ভালো অবস্থান" },
+  moderate: { en: "Needs work", bn: "উন্নতি দরকার" },
+  weak: { en: "Under pressure", bn: "চাপের মধ্যে" },
+  critical: { en: "Critical", bn: "সংকটজনক" },
+} as const;
+
+export default function FinancialHealth() {
+  const bundle = useBundle();
+  const f = useFmt();
+  const { lang } = useCopilot();
+  if (!bundle) return null;
+  const { ctx, health } = bundle;
+  const band = bandFor(health.score);
+  const savingsRate = ctx.monthlyIncomeAvg > 0 ? (ctx.monthlyIncomeAvg - ctx.monthlySpendAvg) / ctx.monthlyIncomeAvg : 0;
+
+  return (
+    <div>
+      <PageHeader
+        title={copy("health", lang)}
+        subtitle={
+          f.loc === "bn"
+            ? "সাতটি মাপ, প্রতিটিই আপনার লেজার থেকে — এবং প্রতিটির অবদান দেখানো আছে।"
+            : "Seven weighted dimensions computed from your ledger. Every one of them shows how much it moved the score."
+        }
+      />
+
+      <Grid cols={4} className="mb-5">
+        <Card className="sm:col-span-1">
+          <div className="text-[11px] font-semibold tracking-wide text-ink-400 uppercase">{copy("health", lang)}</div>
+          <div className="mt-1 flex items-end gap-2">
+            <span className="tabular text-[44px] leading-none font-black tracking-[-0.03em] text-ink-900">{health.score}</span>
+            <span className="mb-1.5 text-[13px] font-semibold text-ink-400">/100</span>
+          </div>
+          <div className="mt-1 text-[14px] font-bold text-brand-700">{f.bi(BAND_LABEL[band].en, BAND_LABEL[band].bn)}</div>
+          <div className="mt-3">
+            <Meter value={health.score} tone={health.score >= 68 ? "good" : health.score >= 45 ? "warn" : "bad"} />
+          </div>
+          <p className="mt-3 text-[11.5px] leading-relaxed text-ink-500">{health.evidence.confidenceNote}</p>
+        </Card>
+
+        <Card className="sm:col-span-3">
+          <CardHeader
+            kicker={copy("methodology", lang)}
+            title={f.loc === "bn" ? "কোন মাপ কতটা টেনেছে" : "What moved the score"}
+            subtitle={
+              f.loc === "bn"
+                ? "প্রতিটি বার = মাত্রার স্কোর × ওজন। যোগ করলে মোট স্কোর।"
+                : "Each bar is dimension × weight. They add up to exactly the score above."
+            }
+          />
+          <div className="space-y-2.5">
+            {health.dimensions.map((d) => (
+              <div key={d.key}>
+                <div className="mb-1 flex items-baseline justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-[12.5px] font-semibold text-ink-800">{f.bi(d.label, d.labelBn)}</span>
+                    {d.value >= 65 ? (
+                      <TrendingUp className="h-3 w-3 shrink-0 text-mint-600" />
+                    ) : d.value < 50 ? (
+                      <TrendingDown className="h-3 w-3 shrink-0 text-brand-500" />
+                    ) : null}
+                  </span>
+                  <span className="tabular shrink-0 text-[11.5px] font-bold text-ink-600">
+                    {f.num(d.value)}/100 · {d.contribution >= 0 ? "+" : ""}
+                    {f.num(d.contribution, 1)} {f.loc === "bn" ? "পয়েন্ট" : "pts"}
+                  </span>
+                </div>
+                <Meter value={d.value} tone={d.value >= 65 ? "good" : d.value >= 45 ? "warn" : "bad"} />
+                <p className="mt-1 text-[11.5px] leading-snug text-ink-500">{d.detail}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </Grid>
+
+      <Grid cols={2} className="mb-5">
+        <Card>
+          <CardHeader kicker={copy("positives", lang)} title={f.loc === "bn" ? "যা ভালো চলছে" : "Working in your favour"} />
+          {health.positives.length ? (
+            <ul className="space-y-2.5">
+              {health.positives.map((d) => (
+                <li key={d.key} className="rounded-xl border border-mint-100 bg-mint-50/50 px-3.5 py-3">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[13px] font-bold text-ink-900">{f.bi(d.label, d.labelBn)}</span>
+                    <Chip tone="good">{f.num(d.value)}/100</Chip>
+                  </div>
+                  <p className="mt-1 text-[12px] leading-relaxed text-ink-600">{d.detail}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[12.5px] text-ink-500">{copy("noData", lang)}</p>
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader kicker={copy("concerns", lang)} title={f.loc === "bn" ? "যা এখন দরকার" : "Where the drag is"} />
+          {health.concerns.length ? (
+            <ul className="space-y-2.5">
+              {health.concerns.map((d) => (
+                <li key={d.key} className="rounded-xl border border-brand-200 bg-brand-50/40 px-3.5 py-3">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[13px] font-bold text-ink-900">{f.bi(d.label, d.labelBn)}</span>
+                    <Chip tone={d.value < 35 ? "bad" : "warn"}>{f.num(d.value)}/100</Chip>
+                  </div>
+                  <p className="mt-1 text-[12px] leading-relaxed text-ink-600">{d.detail}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[12.5px] text-ink-500">
+              {f.loc === "bn" ? "এখন কোনো মাত্রাই সংকটে নেই।" : "No dimension is currently in the weak band."}
+            </p>
+          )}
+        </Card>
+      </Grid>
+
+      <Grid cols={3} className="mb-5">
+        <Panel title={f.loc === "bn" ? "মাসভিত্তিক আয় বনাম ব্যয়" : "Monthly income vs spending"} height={210}>
+          <MonthlyFlowChart
+            data={ctx.monthly.map((m) => ({ key: m.key, income: m.income, spend: m.spend, savings: m.savings }))}
+            lang={f.tlang}
+            height={210}
+          />
+        </Panel>
+
+        <Panel title={f.loc === "bn" ? "যা আপনার স্কোরের ভিত্তি" : "The raw inputs"} height={210}>
+          <div className="grid h-full grid-cols-2 gap-4">
+            <Stat
+              label={copy("savingsRate", lang)}
+              value={f.percent(savingsRate, 1)}
+              tone={savingsRate >= 0.15 ? "good" : "warn"}
+              hint={f.loc === "bn" ? "আয়ের বাপরে সঞ্চয়" : "of income kept"}
+            />
+            <Stat
+              label={f.loc === "bn" ? "জরুরি রিজার্ভ" : "Emergency buffer"}
+              value={f.num(health.emergencyMonths, 1)}
+              hint={`${copy("months", lang)} · ${f.taka(health.essentialMonthly)} ${f.loc === "bn" ? "প্রয়োজনীয়" : "essential"}`}
+            />
+            <Stat
+              label={f.loc === "bn" ? "ডিজিটাল খরচের অংশ" : "Digital spend share"}
+              value={f.percent(health.digitalShare, 0)}
+              hint={f.loc === "bn" ? "নগদের বাইরে" : "settled without cash"}
+            />
+            <Stat
+              label={f.loc === "bn" ? "নিয়মিত দায়বদ্ধতা" : "Recurring commitments"}
+              value={f.compact(health.recurringMonthly)}
+              hint={f.loc === "bn" ? "প্রতি চক্রে" : "per cycle"}
+            />
+          </div>
+        </Panel>
+
+        <Panel title={f.loc === "bn" ? "কম ব্যালেন্সের দিন" : "Low-balance days"} height={210}>
+          <Stat
+            label={f.loc === "bn" ? "অতিক্রান্ত দিন" : "days below buffer"}
+            value={f.num(health.lowBalanceDays)}
+            hint={`${f.loc === "bn" ? "গত" : "of"} ${f.num(ctx.daily.length)} ${f.loc === "bn" ? "দিনের ইতিহাসে" : "days in the observed window"}`}
+            tone={health.lowBalanceDays > 20 ? "bad" : health.lowBalanceDays > 8 ? "warn" : "good"}
+            big
+          />
+          <p className="mt-3 text-[12px] leading-relaxed text-ink-500">
+            {f.loc === "bn"
+              ? `রিজার্ভ = প্রয়োজনীয় মাসিক ব্যয়ের অর্ধেক (${f.taka(Math.max(1, health.essentialMonthly / 2))})। নিচে থাকা দিনগুলোই সমস্যার প্রকৃত সময়।`
+              : `The buffer is half a month of essential spend (${f.taka(Math.max(1, health.essentialMonthly / 2))}). Days underneath it are when money decisions actually get hard.`}
+          </p>
+          <Link to="/forecast" className="mt-3 inline-flex items-center gap-1 text-[12px] font-bold text-brand-600 hover:underline">
+            {f.loc === "bn" ? "ভবিষ্তের ছবি দেখুন" : "See the forward view"} <ArrowRight className="h-3 w-3" />
+          </Link>
+        </Panel>
+      </Grid>
+
+      <Card>
+        <CardHeader
+          kicker={copy("evidence", lang)}
+          title={health.evidence.headline}
+          right={
+            <Chip tone="neutral">
+              {Math.round(health.evidence.confidence * 100)}% {copy("confidence", lang)}
+            </Chip>
+          }
+        />
+        <EvidenceBody evidence={health.evidence} />
+      </Card>
+
+      <div className="mt-5">
+        <Banner tone="info" title={f.loc === "bn" ? "এটি একটি পরিকল্পনা স্কোর, ঋণ স্কোর নয়" : "This is a planning score, not a credit score"} icon={<Info className="h-4 w-4" />}>
+          <p>
+            {f.loc === "bn"
+              ? "এই স্কোর কোনো ঋণ প্রতিষ্ঠানের সিদ্ধান্ত প্রভাবিত করে না এবং আপনার ঋণযোগ্যতা নির্ধারণ করে না। এটি শুধু আপনার নিজের আর্থিক অভ্যাস বোঝার জন্য।"
+              : "No lender sees this number and it does not determine eligibility. It exists so you can see your own habits described back to you in measurable terms."}
+          </p>
+        </Banner>
+      </div>
+
+      <div className="mt-5">
+        <Card>
+          <CardHeader title={f.loc === "bn" ? "মাসভিত্তিক ভিত্তি" : "Month-by-month basis"} />
+          <Table
+            align="right"
+            head={[
+              f.loc === "bn" ? "মাস" : "Month",
+              f.loc === "bn" ? "আয়" : "Income",
+              f.loc === "bn" ? "ব্যয়" : "Spending",
+              f.loc === "bn" ? "সঞ্চয়" : "Savings",
+              f.loc === "bn" ? "হার" : "Rate",
+              f.loc === "bn" ? "লক্ষ্যে জমা" : "To goals",
+              f.loc === "bn" ? "২৩+ দিনের ব্যয়" : "Spend after d23",
+            ]}
+            rows={ctx.monthly.map((m) => [
+              f.month(m.key),
+              f.taka(m.income),
+              f.taka(m.spend),
+              <span className={cx("tabular font-semibold", m.savings < 0 ? "text-brand-700" : "text-ink-900")}>{f.taka(m.savings)}</span>,
+              f.percent(m.savingsRate, 0),
+              f.taka(m.contribution),
+              f.percent(m.lateShare, 0),
+            ])}
+          />
+        </Card>
+      </div>
+    </div>
+  );
+}
