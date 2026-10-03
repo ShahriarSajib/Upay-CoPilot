@@ -7,6 +7,8 @@ import { useCopilot } from "./data/store";
 import { t as copy } from "./i18n";
 
 import Dashboard from "./pages/Dashboard";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 
 /**
  * Only the dashboard ships in the main chunk. Every other page pulls its own
@@ -31,16 +33,33 @@ const Evaluation = lazy(() => import("./pages/Evaluation"));
 
 function Page({ children }: { children: ReactNode }) {
   const bundle = useBundle();
-  const { status } = useCopilot();
+  const { status, isAuthenticated } = useCopilot();
   const memo = useMemo(() => children, [children]);
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (status === "loading" || !bundle) return <Loading />;
   return <Suspense fallback={<Loading />}>{memo}</Suspense>;
 }
 
+function ProtectedRoute({ children }: { children: ReactNode }) {
+  const { isAuthenticated, status } = useCopilot();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
+  const { isAuthenticated } = useCopilot();
+
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route path="login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="signup" element={isAuthenticated ? <Navigate to="/" replace /> : <Signup />} />
+      <Route
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
         <Route
           index
           element={

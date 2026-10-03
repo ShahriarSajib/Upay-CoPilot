@@ -1,0 +1,30 @@
+{
+  "name": "upay-copilot",
+  "version": "0.1.0",
+  "description": "AI-powered bilingual financial independence assistant for upay customers.",
+  "private": true,
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "python -m pytest",
+    "test:unit": "python -m unittest discover -s tests -v",
+    "data:generate": "python scripts/generate_synthetic_data.py",
+    "data:validate": "python scripts/validate_dataset.py",
+    "data:leakage": "python scripts/leakage_check.py",
+    "api:dev": "python -m backend.app.main"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShahriarSajib/Upay-CoPilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ShahriarSajib/Upay-CoPilot/issues"
+  },
+  "homepage": "https://github.com/ShahriarSajib/Upay-CoPilot#readme"
+}

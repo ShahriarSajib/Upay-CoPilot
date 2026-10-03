@@ -39,6 +39,9 @@ interface CopilotState {
   pushEvidence: (evidence: Evidence) => void;
   popEvidence: () => void;
   clearEvidence: () => void;
+  isAuthenticated: boolean;
+  login: (userId: string) => void;
+  logout: () => void;
 }
 
 const CopilotContext = createContext<CopilotState | null>(null);
@@ -46,6 +49,7 @@ const CopilotContext = createContext<CopilotState | null>(null);
 const STORAGE_USER = "upay.copilot.user";
 const STORAGE_LANG = "upay.copilot.lang";
 const STORAGE_NUMERALS = "upay.copilot.numerals";
+const STORAGE_AUTH = "upay.copilot.auth";
 
 export function CopilotProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<CopilotState["status"]>("loading");
@@ -53,6 +57,9 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<Dataset | null>(null);
   const [userId, setUserIdState] = useState<string>(
     () => localStorage.getItem(STORAGE_USER) ?? "",
+  );
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    () => localStorage.getItem(STORAGE_AUTH) === "1",
   );
   const [lang, setLangState] = useState<Lang>(
     () => (localStorage.getItem(STORAGE_LANG) as Lang) || "en",
@@ -86,6 +93,18 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_USER, id);
   }, []);
 
+  const login = useCallback((id: string) => {
+    setUserIdState(id);
+    setIsAuthenticated(true);
+    localStorage.setItem(STORAGE_USER, id);
+    localStorage.setItem(STORAGE_AUTH, "1");
+  }, []);
+
+  const logout = useCallback(() => {
+    setIsAuthenticated(false);
+    localStorage.setItem(STORAGE_AUTH, "0");
+  }, []);
+
   const setLang = useCallback((next: Lang) => {
     setLangState(next);
     localStorage.setItem(STORAGE_LANG, next);
@@ -102,7 +121,7 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
   const popEvidence = useCallback(() => setEvidenceStack((stack) => stack.slice(1)), []);
   const clearEvidence = useCallback(() => setEvidenceStack([]), []);
 
-  const ctx = useMemo(() => (data && userId ? buildUserContext(data, userId) : null), [data, userId]);
+  const ctx = useMemo(() => (data && userId && isAuthenticated ? buildUserContext(data, userId) : null), [data, userId, isAuthenticated]);
 
   const value = useMemo<CopilotState>(
     () => ({
@@ -121,6 +140,9 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
       pushEvidence,
       popEvidence,
       clearEvidence,
+      isAuthenticated,
+      login,
+      logout,
     }),
     [
       status,
@@ -137,6 +159,9 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
       pushEvidence,
       popEvidence,
       clearEvidence,
+      isAuthenticated,
+      login,
+      logout,
     ],
   );
 

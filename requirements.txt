@@ -1,0 +1,12 @@
+# Runtime dependencies for the upay Financial Life Copilot.
+# Install with:  python -m pip install -r requirements.txt
+
+# --- API service -----------------------------------------------------------
+fastapi>=0.110
+uvicorn[standard]>=0.27
+python-dotenv>=1.0
+pydantic>=2.6
+
+# --- Synthetic data / ML pipeline -----------------------------------------
+numpy>=1.26
+pandas>=2.2
