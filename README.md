@@ -541,7 +541,7 @@ context object — switching language or customer recomputes nothing.
 
 ---
 
-## Database
+## Why this project matters
 
 The production relational shape lives in `backend/app/db/schema.sql`:
 

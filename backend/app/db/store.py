@@ -7,9 +7,8 @@ is identical no matter where the rows came from.
 
 Two implementations ship:
 
-* :class:`EmbeddedStore`  — reads the approved development dataset
-  (``data/dev``) into a cached pandas store. Zero setup, used by the API and
-  tests. The generated population under ``data/generated`` is never read.
+* :class:`EmbeddedStore`  — reads the generated product dataset
+  (``data/generated``) into a cached pandas store.
 * :class:`PostgresStore`  — runs the same rollups in SQL against the schema in
   ``app/db/schema.sql``.
 
@@ -266,19 +265,17 @@ class EmbeddedStore:
 
 
 def get_store() -> FinancialStore:
-    """Process-wide store, built from ``DATABASE_URL``."""
+    """Build the configured store; embedded mode is an explicit no-DB fallback."""
     url = settings.database_url
-    if url.startswith("postgres"):
+    if settings.use_postgres and url.startswith("postgres"):
         from app.db.postgres_store import PostgresStore
-
         return PostgresStore(url)
     return EmbeddedStore()
 
 
 @lru_cache(maxsize=1)
-def cached_store() -> EmbeddedStore:
-    """Cached embedded store for the ML pipeline and evaluation scripts."""
-    return EmbeddedStore()
+def cached_store() -> FinancialStore:
+    return get_store()
 
 
 def reset_store_cache() -> None:

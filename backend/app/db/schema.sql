@@ -6,12 +6,33 @@
 --   psql "$DATABASE_URL" -f backend/app/db/schema.sql
 --   python backend/scripts/load_postgres.py
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TABLE IF NOT EXISTS users (
     user_id            TEXT PRIMARY KEY,
     age_group          TEXT NOT NULL,
     occupation         TEXT NOT NULL,
     location_type      TEXT NOT NULL,
-    account_age_days   INTEGER NOT NULL
+    account_age_days   INTEGER NOT NULL,
+    full_name          TEXT,
+    name_bn            TEXT,
+    persona            TEXT,
+    monthly_income_base NUMERIC(14,2),
+    expense_ratio      DOUBLE PRECISION,
+    income_cv          DOUBLE PRECISION,
+    cash_out_rate      DOUBLE PRECISION,
+    digital_ratio      DOUBLE PRECISION,
+    target_savings_rate DOUBLE PRECISION,
+    goal_count         INTEGER,
+    anomaly_rate       DOUBLE PRECISION
+);
+
+CREATE TABLE IF NOT EXISTS financial_profiles (
+    user_id TEXT PRIMARY KEY REFERENCES users(user_id),
+    monthly_income_avg NUMERIC(14,2), monthly_expense_avg NUMERIC(14,2),
+    average_monthly_savings NUMERIC(14,2), savings_rate DOUBLE PRECISION,
+    income_stability DOUBLE PRECISION, cash_dependency DOUBLE PRECISION,
+    emergency_fund_months DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS wallets (
@@ -65,8 +86,11 @@ CREATE TABLE IF NOT EXISTS transactions (
     related_transaction_id   TEXT REFERENCES transactions(transaction_id),
     income_event_id          TEXT REFERENCES income_events(income_id),
     recurring_id             TEXT REFERENCES recurring_expenses(recurring_id),
-    fee_amount               NUMERIC(14, 2) NOT NULL DEFAULT 0
+    fee_amount                NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    is_anomaly                BOOLEAN NOT NULL DEFAULT FALSE,
+    pattern_type              TEXT
 );
+ALTER TABLE transactions ALTER COLUMN pattern_type DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS financial_goals (
     goal_id           TEXT PRIMARY KEY,
@@ -138,6 +162,23 @@ CREATE TABLE IF NOT EXISTS injected_patterns (
     timestamp        TIMESTAMPTZ NOT NULL,
     transaction_id   TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS auth_users (
+    auth_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    user_id TEXT REFERENCES users(user_id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    token_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    auth_id UUID NOT NULL REFERENCES auth_users(auth_id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_token ON auth_sessions(token_hash);
 
 CREATE INDEX IF NOT EXISTS idx_tx_user_time ON transactions (user_id, timestamp);
 CREATE INDEX IF NOT EXISTS idx_tx_time ON transactions (timestamp);
