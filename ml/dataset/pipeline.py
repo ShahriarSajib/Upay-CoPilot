@@ -49,12 +49,16 @@ def month_starts(count: int = MONTHS, start: pd.Timestamp | None = None) -> list
 
 
 def build_dataset(
-    seed: int = SEED, num_users: int = NUM_USERS, months_count: int = MONTHS
+    seed: int = SEED,
+    num_users: int = NUM_USERS,
+    months_count: int = MONTHS,
+    named: bool = False,
+    volume_scale: float = 1.0,
 ) -> dict[str, pd.DataFrame]:
     """Generate every table, with independent RNG streams per stage."""
     months = month_starts(months_count)
 
-    users = generate_users(np.random.default_rng(seed), num_users, months_count)
+    users = generate_users(np.random.default_rng(seed), num_users, months_count, named=named)
     wallets = generate_wallets(np.random.default_rng(seed + 10), users, months_count)
     print(f"  users={len(users)} wallets={len(wallets)}")
 
@@ -67,7 +71,8 @@ def build_dataset(
     print(f"  recurring_expenses={len(recurring)}")
 
     transactions, patterns, wallets = generate_transactions(
-        np.random.default_rng(seed + 3), users, wallets, income, recurring, months
+        np.random.default_rng(seed + 3), users, wallets, income, recurring, months,
+        volume_scale=volume_scale,
     )
     print(f"  transactions={len(transactions)}")
 
@@ -146,10 +151,18 @@ def generate_all(
     months_count: int = MONTHS,
     output_dir: str = OUTPUT_DIR,
     split_dirs: dict[str, str] = SPLIT_DIRS,
+    named: bool = False,
+    volume_scale: float = 1.0,
 ) -> dict[str, pd.DataFrame]:
     """Generate, persist and split the dataset in one call."""
     print(f"Generating synthetic dataset (seed={seed}, users={num_users}, months={months_count})")
-    tables = build_dataset(seed=seed, num_users=num_users, months_count=months_count)
+    tables = build_dataset(
+        seed=seed,
+        num_users=num_users,
+        months_count=months_count,
+        named=named,
+        volume_scale=volume_scale,
+    )
 
     written = write_dataset(tables, output_dir)
     print(f"\nWrote {len(written)} tables to {output_dir}/")

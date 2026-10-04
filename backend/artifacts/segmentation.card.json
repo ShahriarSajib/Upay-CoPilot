@@ -1,0 +1,72 @@
+{
+  "name": "segmentation",
+  "task": "unsupervised behavioural grouping of customers",
+  "trained_at": "2026-10-04T00:44:10.506377+00:00",
+  "train_window": "2026-01..2026-05",
+  "validation_window": "2026-06..2026-07",
+  "features": [
+    "account_age_days",
+    "account_age_months",
+    "anomaly_events",
+    "balance_volatility",
+    "cash_dependency",
+    "category_entropy",
+    "days_below_buffer",
+    "digital_ratio",
+    "emergency_buffer_months",
+    "ending_balance",
+    "expense_income_ratio",
+    "funding_consistency",
+    "funding_months",
+    "goal_contribution_monthly",
+    "goal_count",
+    "goal_progress",
+    "goal_target_total",
+    "goals_achieved",
+    "has_cash_wallet",
+    "income_cv",
+    "income_stability",
+    "late_month_share",
+    "late_month_share_max",
+    "low_balance_frequency",
+    "mandatory_obligation_amount",
+    "mean_balance",
+    "min_balance",
+    "monthly_cash_out",
+    "monthly_expense",
+    "monthly_income",
+    "monthly_recurring_amount",
+    "monthly_surplus",
+    "months_negative_surplus",
+    "months_observed",
+    "obligation_count",
+    "recurring_obligation_ratio",
+    "savings_rate",
+    "small_purchase_ratio",
+    "txn_per_month",
+    "wallet_count"
+  ],
+  "metrics": {
+    "silhouette": 0.2375,
+    "inertia": 1121.2734,
+    "cluster_sizes": {
+      "0": 28,
+      "1": 3,
+      "2": 17,
+      "3": 2
+    },
+    "mean_adjusted_rand_index_vs_behaviour_flags": 0.1593,
+    "temporal_adjusted_rand_index": 0.8571,
+    "temporal_identical_assignment_share": 0.34
+  },
+  "baselines": {
+    "silhouette_by_k": {
+      "2": 0.1974,
+      "3": 0.2143,
+      "4": 0.2375,
+      "5": 0.2087,
+      "6": 0.1796
+    }
+  },
+  "notes": "KMeans on standardised user-level behavioural features; k chosen by silhouette. HDBSCAN was not used: it is not installed and on this population size it would return one cluster plus noise, which is indistinguishable from 'no structure'. Internal metrics are reported alongside adjusted Rand index against the generator's behaviour flags and against an independently refit segmentation on a longer history, because a silhouette can always be raised by adding clusters."
+}

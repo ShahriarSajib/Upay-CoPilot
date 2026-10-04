@@ -10,6 +10,8 @@ import pandas as pd
 from .config import (
     AGE_GROUPS,
     AGE_INCOME_MULTIPLIER,
+    DEV_PERSONAS_BALANCED,
+    DEV_USER_NAMES,
     LOCATION_INCOME_MULTIPLIER,
     LOCATION_PROBABILITIES,
     LOCATION_TYPES,
@@ -74,17 +76,48 @@ def user_monthly_income_base(
     return round(float(rng.normal(scaled, scaled * 0.12)), 2)
 
 
-def generate_users(rng: np.random.Generator, num_users: int, months: int) -> pd.DataFrame:
-    """Create the user dimension table with ground-truth persona labels."""
+def generate_users(
+    rng: np.random.Generator,
+    num_users: int,
+    months: int,
+    named: bool = False,
+) -> pd.DataFrame:
+    """Create the user dimension table with ground-truth persona labels.
+
+    With ``named=True`` each user also receives a synthetic ``full_name`` and
+    ``name_bn`` (Bangla script) and personas are assigned round-robin from
+    ``DEV_PERSONAS_BALANCED`` instead of sampled, so a small population still
+    covers every behaviour. Names are assigned in a shuffled order so persona
+    and name stay uncorrelated.
+    """
     rows = []
-    persona_names = list(PERSONA_PROBABILITIES.keys())
-    persona_probs = np.array(list(PERSONA_PROBABILITIES.values()), dtype=float)
-    persona_probs = persona_probs / persona_probs.sum()
+
+    if named:
+        names = list(DEV_USER_NAMES)
+        if num_users > len(names):
+            raise ValueError(
+                f"DEV_USER_NAMES has {len(names)} entries but {num_users} users "
+                "were requested; add more synthetic names"
+            )
+        assignment = [DEV_PERSONAS_BALANCED[i % len(DEV_PERSONAS_BALANCED)] for i in range(num_users)]
+        rng.shuffle(assignment)
+        order = rng.permutation(num_users)
+        identity = {
+            int(user_index): (DEV_USER_NAMES[int(name_index)][0], DEV_USER_NAMES[int(name_index)][1])
+            for user_index, name_index in enumerate(order)
+        }
+    else:
+        persona_names = list(PERSONA_PROBABILITIES.keys())
+        persona_probs = np.array(list(PERSONA_PROBABILITIES.values()), dtype=float)
+        persona_probs = persona_probs / persona_probs.sum()
 
     min_age = min_account_age_days(months)
 
     for index in range(1, num_users + 1):
-        persona_name = str(rng.choice(persona_names, p=persona_probs))
+        if named:
+            persona_name = assignment[index - 1]
+        else:
+            persona_name = str(rng.choice(persona_names, p=persona_probs))
         profile = PERSONA_PROFILES[persona_name]
 
         occupation = weighted_choice(rng, OCCUPATIONS, profile.occupation_weights)
@@ -97,7 +130,7 @@ def generate_users(rng: np.random.Generator, num_users: int, months: int) -> pd.
             rng, occupation, age_group, location_type, profile
         )
 
-        rows.append({
+        record = {
             "user_id": f"U{index:05d}",
             "age_group": age_group,
             "occupation": occupation,
@@ -112,7 +145,13 @@ def generate_users(rng: np.random.Generator, num_users: int, months: int) -> pd.
             "target_savings_rate": round(profile.savings_rate, 4),
             "goal_count": profile.goal_count,
             "anomaly_rate": round(profile.anomaly_rate, 4),
-        })
+        }
+        if named:
+            full_name, name_bn = identity[index - 1]
+            # Placed after user_id so the identity columns read together.
+            record = {"user_id": record["user_id"], "full_name": full_name, "name_bn": name_bn,
+                      **{k: v for k, v in record.items() if k != "user_id"}}
+        rows.append(record)
 
     return pd.DataFrame(rows)
 

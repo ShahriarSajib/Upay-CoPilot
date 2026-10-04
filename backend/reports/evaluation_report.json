@@ -1,0 +1,1780 @@
+{
+  "trained_at": "2026-10-04T00:44:10.506377+00:00",
+  "source": "data/dev/splits",
+  "splits": [
+    {
+      "split": "train",
+      "periods": [
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05"
+      ],
+      "period_range": "2026-01..2026-05",
+      "roster_users": 500,
+      "active_users": 50,
+      "transactions": 4061,
+      "transaction_window": "2026-01-01 06:17:00..2026-05-31 22:06:00",
+      "injected_anomalies": 40,
+      "behavior_label_rows": 450,
+      "financial_profile_rows": 50
+    },
+    {
+      "split": "validation",
+      "periods": [
+        "2026-06",
+        "2026-07"
+      ],
+      "period_range": "2026-06..2026-07",
+      "roster_users": 500,
+      "active_users": 50,
+      "transactions": 1802,
+      "transaction_window": "2026-06-01 06:44:00..2026-07-31 22:27:00",
+      "injected_anomalies": 25,
+      "behavior_label_rows": 450,
+      "financial_profile_rows": 50
+    },
+    {
+      "split": "test",
+      "periods": [
+        "2026-08",
+        "2026-09"
+      ],
+      "period_range": "2026-08..2026-09",
+      "roster_users": 500,
+      "active_users": 50,
+      "transactions": 1746,
+      "transaction_window": "2026-08-01 06:07:00..2026-09-30 22:43:00",
+      "injected_anomalies": 23,
+      "behavior_label_rows": 450,
+      "financial_profile_rows": 50
+    }
+  ],
+  "disjoint_periods": {
+    "train": [
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04",
+      "2026-05"
+    ],
+    "validation": [
+      "2026-06",
+      "2026-07"
+    ],
+    "test": [
+      "2026-08",
+      "2026-09"
+    ]
+  },
+  "runtime": {
+    "python_packages": {
+      "lightgbm": "4.7.0",
+      "scikit_learn": "unknown",
+      "pandas": "2.3.3",
+      "numpy": "2.2.6"
+    },
+    "not_installed": {
+      "xgboost": "optional / unused in this build",
+      "shap": "optional / unused in this build",
+      "hdbscan": "optional / unused in this build"
+    }
+  },
+  "forecast": {
+    "train_periods": [
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04",
+      "2026-05"
+    ],
+    "validation_periods": [
+      "2026-06",
+      "2026-07"
+    ],
+    "test_periods": [
+      "2026-08",
+      "2026-09"
+    ],
+    "n_monthly_rows": 450,
+    "feature_importance": {
+      "spend": {
+        "min_3": 44.0,
+        "last_ratio": 33.0,
+        "cash_share": 33.0,
+        "n_history": 20.0,
+        "mean_1": 19.0,
+        "ending_balance": 19.0,
+        "std_3": 14.0,
+        "lag2": 14.0,
+        "cv": 13.0,
+        "max_3": 12.0,
+        "goal_contribution": 8.0,
+        "balance_to_spend": 7.0
+      },
+      "income": {
+        "income_lag2": 74.0,
+        "max_3": 36.0,
+        "ending_balance": 33.0,
+        "balance_to_spend": 26.0,
+        "recurring_share": 15.0,
+        "income_lag1": 14.0,
+        "cv": 8.0,
+        "expense_ratio": 6.0,
+        "min_3": 5.0,
+        "income_max_3": 5.0,
+        "mean_1": 4.0,
+        "last_ratio": 4.0
+      }
+    },
+    "spend": {
+      "test": {
+        "structural_trailing": {
+          "mae": 13305.060952380949,
+          "rmse": 27320.32559600244,
+          "mape_active_days": 61.04965699149718,
+          "bias": 952.8767047619017,
+          "n": 100
+        },
+        "gbm_only": {
+          "mae": 20437.765921190934,
+          "rmse": 36223.67422297485,
+          "mape_active_days": 83.31414169912057,
+          "bias": 1124.851847713358,
+          "n": 100
+        },
+        "volatility_gate": {
+          "mae": 11214.125104302302,
+          "rmse": 23249.838197096393,
+          "mape_active_days": 62.56559787546073,
+          "bias": -659.6322877063186,
+          "n": 100
+        },
+        "gate": {
+          "cv_low": 0.225,
+          "cv_high": 0.425,
+          "share_users_fully_structural": 0.67,
+          "share_users_fully_gbm": 0.11
+        }
+      },
+      "validation": {
+        "structural_trailing": {
+          "mae": 16792.42704761905,
+          "rmse": 32225.338241605285,
+          "mape_active_days": 28.484281705762594,
+          "bias": 200.6271428571404,
+          "n": 100
+        },
+        "gbm_only": {
+          "mae": 21215.283514226543,
+          "rmse": 36451.84401794897,
+          "mape_active_days": 44.43416290971082,
+          "bias": -1620.2416375074702,
+          "n": 100
+        },
+        "volatility_gate": {
+          "mae": 14042.9743523351,
+          "rmse": 31447.23140047711,
+          "mape_active_days": 25.327214315262758,
+          "bias": -4828.860508409718,
+          "n": 100
+        }
+      },
+      "test_by_volatility_band": {
+        "stable_cv_lt_0.15": {
+          "mae": 4850.265098901099,
+          "rmse": 12776.350014363945,
+          "mape_active_days": 8.105657203126452,
+          "bias": -2979.601274725277,
+          "n": 65
+        },
+        "moderate_cv": {
+          "mae": 25665.639454573018,
+          "rmse": 38515.095251940744,
+          "mape_active_days": 192.48824438528897,
+          "bias": 2867.5870041429666,
+          "n": 28
+        }
+      },
+      "mae_improvement_vs_trailing_percent": 15.72
+    },
+    "income": {
+      "test": {
+        "structural_trailing": {
+          "mae": 5462.1943190476195,
+          "rmse": 14581.782629696294,
+          "mape_active_days": 6.761571472238059,
+          "bias": -828.0755666666679,
+          "n": 100
+        },
+        "gbm_only": {
+          "mae": 18437.385110613293,
+          "rmse": 38515.53901348684,
+          "mape_active_days": 31.814805075570284,
+          "bias": -1026.0142984404506,
+          "n": 100
+        },
+        "volatility_gate": {
+          "mae": 5200.800238360552,
+          "rmse": 13561.747162223588,
+          "mape_active_days": 7.142327249215724,
+          "bias": -17.497420755185885,
+          "n": 100
+        },
+        "gate": {
+          "cv_low": 0.5750000000000001,
+          "cv_high": 0.8750000000000003,
+          "share_users_fully_structural": 0.97,
+          "share_users_fully_gbm": 0.0
+        }
+      },
+      "validation": {
+        "structural_trailing": {
+          "mae": 6062.548852380953,
+          "rmse": 17365.635905776613,
+          "mape_active_days": 9.82493052551511,
+          "bias": -643.5331666666697,
+          "n": 100
+        },
+        "gbm_only": {
+          "mae": 16883.997248076903,
+          "rmse": 33416.568956869894,
+          "mape_active_days": 31.175840516026295,
+          "bias": -96.64034426021048,
+          "n": 100
+        },
+        "volatility_gate": {
+          "mae": 5834.114553041794,
+          "rmse": 17191.839900290383,
+          "mape_active_days": 9.423761462398492,
+          "bias": -401.144246283594,
+          "n": 100
+        }
+      },
+      "test_by_volatility_band": {
+        "stable_cv_lt_0.15": {
+          "mae": 1885.4474505494497,
+          "rmse": 3309.6456380832665,
+          "mape_active_days": 3.5368894609896584,
+          "bias": -374.2187032967055,
+          "n": 65
+        },
+        "moderate_cv": {
+          "mae": 11151.005765306121,
+          "rmse": 23186.944325779365,
+          "mape_active_days": 9.926481680337822,
+          "bias": 1787.4130102040815,
+          "n": 28
+        }
+      },
+      "mae_improvement_vs_trailing_percent": 4.79
+    }
+  },
+  "anomaly": {
+    "contamination": 0.012,
+    "contamination_selection": {
+      "contamination": 0.012,
+      "grid": [
+        {
+          "contamination": 0.004,
+          "precision": 0.8888888888888888,
+          "recall": 0.32,
+          "f1": 0.47058823529411764
+        },
+        {
+          "contamination": 0.008,
+          "precision": 0.8571428571428571,
+          "recall": 0.48,
+          "f1": 0.6153846153846153
+        },
+        {
+          "contamination": 0.012,
+          "precision": 0.7647058823529411,
+          "recall": 0.52,
+          "f1": 0.6190476190476191
+        },
+        {
+          "contamination": 0.02,
+          "precision": 0.5714285714285714,
+          "recall": 0.64,
+          "f1": 0.6037735849056605
+        },
+        {
+          "contamination": 0.03,
+          "precision": 0.32,
+          "recall": 0.64,
+          "f1": 0.4266666666666667
+        },
+        {
+          "contamination": 0.05,
+          "precision": 0.21176470588235294,
+          "recall": 0.72,
+          "f1": 0.32727272727272727
+        },
+        {
+          "contamination": 0.08,
+          "precision": 0.15254237288135594,
+          "recall": 0.72,
+          "f1": 0.2517482517482518
+        },
+        {
+          "contamination": 0.12,
+          "precision": 0.1342281879194631,
+          "recall": 0.8,
+          "f1": 0.22988505747126436
+        }
+      ]
+    },
+    "prior_anomaly_rate": 0.011565251675647259,
+    "features": [
+      "amount",
+      "amount_vs_user_median",
+      "amount_vs_user_p90",
+      "amount_vs_user_monthly_expense",
+      "category_amount_zscore",
+      "category_frequency_for_user",
+      "balance_to_amount",
+      "is_cash_out",
+      "is_recurring"
+    ],
+    "metrics": {
+      "2026-08": {
+        "precision": 0.625,
+        "recall": 0.2777777777777778,
+        "f1": 0.3846153846153846,
+        "true_positive": 5,
+        "false_positive": 3,
+        "false_negative": 13,
+        "n": 668,
+        "by_pattern": {
+          "large_unplanned_charge": {
+            "injected": 4,
+            "detected": 1,
+            "recall": 0.25
+          },
+          "unusual_merchant": {
+            "injected": 7,
+            "detected": 0,
+            "recall": 0.0
+          },
+          "duplicate_charge": {
+            "injected": 2,
+            "detected": 1,
+            "recall": 0.5
+          },
+          "round_number_spike": {
+            "injected": 5,
+            "detected": 3,
+            "recall": 0.6
+          }
+        },
+        "false_positive_rate": 0.004615384615384616,
+        "average_precision": 0.27860923421238437,
+        "precision_at_k": 0.12,
+        "baseline_random_f1": 0.012
+      },
+      "2026-09": {
+        "precision": 0.3333333333333333,
+        "recall": 0.6,
+        "f1": 0.42857142857142855,
+        "true_positive": 3,
+        "false_positive": 6,
+        "false_negative": 2,
+        "n": 674,
+        "by_pattern": {
+          "large_unplanned_charge": {
+            "injected": 2,
+            "detected": 2,
+            "recall": 1.0
+          },
+          "unusual_merchant": {
+            "injected": 2,
+            "detected": 0,
+            "recall": 0.0
+          },
+          "duplicate_charge": {
+            "injected": 0,
+            "detected": 0,
+            "recall": 0.0
+          },
+          "round_number_spike": {
+            "injected": 1,
+            "detected": 1,
+            "recall": 1.0
+          }
+        },
+        "false_positive_rate": 0.008968609865470852,
+        "average_precision": 0.31520015670264645,
+        "precision_at_k": 0.06,
+        "baseline_random_f1": 0.012
+      },
+      "validation_pooled": {
+        "precision": 0.7647058823529411,
+        "recall": 0.52,
+        "f1": 0.6190476190476191,
+        "true_positive": 13,
+        "false_positive": 4,
+        "false_negative": 12,
+        "n": 1383,
+        "by_pattern": {
+          "large_unplanned_charge": {
+            "injected": 7,
+            "detected": 5,
+            "recall": 0.7142857142857143
+          },
+          "unusual_merchant": {
+            "injected": 5,
+            "detected": 0,
+            "recall": 0.0
+          },
+          "duplicate_charge": {
+            "injected": 4,
+            "detected": 2,
+            "recall": 0.5
+          },
+          "round_number_spike": {
+            "injected": 9,
+            "detected": 6,
+            "recall": 0.6666666666666666
+          }
+        },
+        "false_positive_rate": 0.0029455081001472753,
+        "average_precision": 0.5007627597148212,
+        "precision_at_k": 0.32,
+        "baseline_random_f1": 0.012
+      },
+      "test_pooled": {
+        "precision": 0.47058823529411764,
+        "recall": 0.34782608695652173,
+        "f1": 0.39999999999999997,
+        "true_positive": 8,
+        "false_positive": 9,
+        "false_negative": 15,
+        "n": 1342,
+        "by_pattern": {
+          "large_unplanned_charge": {
+            "injected": 6,
+            "detected": 3,
+            "recall": 0.5
+          },
+          "unusual_merchant": {
+            "injected": 9,
+            "detected": 0,
+            "recall": 0.0
+          },
+          "duplicate_charge": {
+            "injected": 2,
+            "detected": 1,
+            "recall": 0.5
+          },
+          "round_number_spike": {
+            "injected": 6,
+            "detected": 4,
+            "recall": 0.6666666666666666
+          }
+        },
+        "false_positive_rate": 0.006823351023502654,
+        "average_precision": 0.281011590152668,
+        "precision_at_k": 0.16,
+        "baseline_random_f1": 0.012
+      }
+    }
+  },
+  "segmentation": {
+    "fitted": true,
+    "evaluation": {
+      "n_clusters": 4,
+      "silhouette": 0.2375,
+      "inertia": 1121.2734,
+      "silhouette_by_k": {
+        "2": 0.1974,
+        "3": 0.2143,
+        "4": 0.2375,
+        "5": 0.2087,
+        "6": 0.1796
+      },
+      "inertia_by_k": {
+        "2": 1469.6747,
+        "3": 1259.7558,
+        "4": 1121.2734,
+        "5": 1023.0427,
+        "6": 944.1878
+      },
+      "chosen_by": "silhouette",
+      "k_candidates": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "population_size": 50,
+      "clusters": [
+        {
+          "cluster_id": 0,
+          "size": 28,
+          "share": 0.56,
+          "mean_profile": {
+            "account_age_days": 1158.0714,
+            "account_age_months": 38.0444,
+            "anomaly_events": 1.2143,
+            "balance_volatility": 29746.6962,
+            "cash_dependency": 0.1934,
+            "category_entropy": 1.9075,
+            "days_below_buffer": 0.1786,
+            "digital_ratio": 0.7091,
+            "emergency_buffer_months": 10.2551,
+            "ending_balance": 490533.1346,
+            "expense_income_ratio": 0.9996,
+            "funding_consistency": 0.05,
+            "funding_months": 0.25,
+            "goal_contribution_monthly": 166.6251,
+            "goal_count": 0.5,
+            "goal_progress": 0.0,
+            "goal_target_total": 51152.7414,
+            "goals_achieved": 0.0,
+            "has_cash_wallet": 1.0,
+            "income_cv": 0.1431,
+            "income_stability": 0.9,
+            "late_month_share": 0.3172,
+            "late_month_share_max": 0.5169,
+            "low_balance_frequency": 0.0012,
+            "mandatory_obligation_amount": 10615.8232,
+            "mean_balance": 496667.874,
+            "min_balance": 409722.9432,
+            "monthly_cash_out": 5836.1794,
+            "monthly_expense": 50822.4074,
+            "monthly_income": 52027.3141,
+            "monthly_recurring_amount": 10734.9591,
+            "monthly_surplus": 1204.9067,
+            "months_negative_surplus": 1.2857,
+            "months_observed": 5.0,
+            "obligation_count": 2.9286,
+            "recurring_obligation_ratio": 0.2824,
+            "savings_rate": 0.0004,
+            "small_purchase_ratio": 0.013,
+            "txn_per_month": 12.2429,
+            "wallet_count": 2.9286
+          },
+          "top_distinctive": [
+            {
+              "feature": "funding_consistency",
+              "cluster_mean": 0.05,
+              "population_mean": 0.368,
+              "standardised_difference": 0.7467
+            },
+            {
+              "feature": "funding_months",
+              "cluster_mean": 0.25,
+              "population_mean": 1.84,
+              "standardised_difference": 0.7467
+            },
+            {
+              "feature": "goal_count",
+              "cluster_mean": 0.5,
+              "population_mean": 1.06,
+              "standardised_difference": 0.6711
+            }
+          ]
+        },
+        {
+          "cluster_id": 1,
+          "size": 3,
+          "share": 0.06,
+          "mean_profile": {
+            "account_age_days": 404.6667,
+            "account_age_months": 13.2939,
+            "anomaly_events": 2.0,
+            "balance_volatility": 102640.5994,
+            "cash_dependency": 0.0748,
+            "category_entropy": 1.9449,
+            "days_below_buffer": 0.0,
+            "digital_ratio": 0.7871,
+            "emergency_buffer_months": 12.0417,
+            "ending_balance": 1626768.6,
+            "expense_income_ratio": 1.0146,
+            "funding_consistency": 0.1333,
+            "funding_months": 0.6667,
+            "goal_contribution_monthly": 1653.4467,
+            "goal_count": 1.3333,
+            "goal_progress": 0.0,
+            "goal_target_total": 272639.6967,
+            "goals_achieved": 0.0,
+            "has_cash_wallet": 1.0,
+            "income_cv": 0.3334,
+            "income_stability": 0.8239,
+            "late_month_share": 0.1896,
+            "late_month_share_max": 0.4427,
+            "low_balance_frequency": 0.0,
+            "mandatory_obligation_amount": 41252.0767,
+            "mean_balance": 1664184.9437,
+            "min_balance": 1416296.2033,
+            "monthly_cash_out": 56.3107,
+            "monthly_expense": 136078.1853,
+            "monthly_income": 132605.5593,
+            "monthly_recurring_amount": 40666.734,
+            "monthly_surplus": -3472.626,
+            "months_negative_surplus": 1.6667,
+            "months_observed": 5.0,
+            "obligation_count": 3.3333,
+            "recurring_obligation_ratio": 0.3953,
+            "savings_rate": -0.0146,
+            "small_purchase_ratio": 0.0018,
+            "txn_per_month": 11.5333,
+            "wallet_count": 3.0
+          },
+          "top_distinctive": [
+            {
+              "feature": "mean_balance",
+              "cluster_mean": 1664184.9437,
+              "population_mean": 512383.4138,
+              "standardised_difference": 2.9562
+            },
+            {
+              "feature": "ending_balance",
+              "cluster_mean": 1626768.6,
+              "population_mean": 521591.1264,
+              "standardised_difference": 2.8759
+            },
+            {
+              "feature": "min_balance",
+              "cluster_mean": 1416296.2033,
+              "population_mean": 420048.8056,
+              "standardised_difference": 2.8303
+            }
+          ]
+        },
+        {
+          "cluster_id": 2,
+          "size": 17,
+          "share": 0.34,
+          "mean_profile": {
+            "account_age_days": 816.7059,
+            "account_age_months": 26.83,
+            "anomaly_events": 0.0,
+            "balance_volatility": 31235.4367,
+            "cash_dependency": 0.0986,
+            "category_entropy": 1.674,
+            "days_below_buffer": 0.0,
+            "digital_ratio": 0.6793,
+            "emergency_buffer_months": 13.7646,
+            "ending_balance": 438579.3347,
+            "expense_income_ratio": 0.6514,
+            "funding_consistency": 0.9294,
+            "funding_months": 4.6471,
+            "goal_contribution_monthly": 12244.8281,
+            "goal_count": 1.9412,
+            "goal_progress": 0.0,
+            "goal_target_total": 227681.3953,
+            "goals_achieved": 0.0588,
+            "has_cash_wallet": 1.0,
+            "income_cv": 0.02,
+            "income_stability": 0.9804,
+            "late_month_share": 0.2061,
+            "late_month_share_max": 0.3624,
+            "low_balance_frequency": 0.0,
+            "mandatory_obligation_amount": 12197.1065,
+            "mean_balance": 394994.728,
+            "min_balance": 310639.5059,
+            "monthly_cash_out": 1742.9226,
+            "monthly_expense": 32323.406,
+            "monthly_income": 49974.3289,
+            "monthly_recurring_amount": 12231.2366,
+            "monthly_surplus": 17650.9229,
+            "months_negative_surplus": 0.0,
+            "months_observed": 5.0,
+            "obligation_count": 2.8824,
+            "recurring_obligation_ratio": 0.3941,
+            "savings_rate": 0.3486,
+            "small_purchase_ratio": 0.0067,
+            "txn_per_month": 8.5765,
+            "wallet_count": 2.8824
+          },
+          "top_distinctive": [
+            {
+              "feature": "funding_months",
+              "cluster_mean": 4.6471,
+              "population_mean": 1.84,
+              "standardised_difference": 1.3182
+            },
+            {
+              "feature": "funding_consistency",
+              "cluster_mean": 0.9294,
+              "population_mean": 0.368,
+              "standardised_difference": 1.3182
+            },
+            {
+              "feature": "goal_contribution_monthly",
+              "cluster_mean": 12244.8281,
+              "population_mean": 4419.3058,
+              "standardised_difference": 1.186
+            }
+          ]
+        },
+        {
+          "cluster_id": 3,
+          "size": 2,
+          "share": 0.04,
+          "mean_profile": {
+            "account_age_days": 608.5,
+            "account_age_months": 19.9901,
+            "anomaly_events": 0.0,
+            "balance_volatility": 1155.1834,
+            "cash_dependency": 0.0443,
+            "category_entropy": 1.9045,
+            "days_below_buffer": 112.5,
+            "digital_ratio": 0.9614,
+            "emergency_buffer_months": 0.206,
+            "ending_balance": 4237.03,
+            "expense_income_ratio": 0.7796,
+            "funding_consistency": 0.4,
+            "funding_months": 2.0,
+            "goal_contribution_monthly": 1588.685,
+            "goal_count": 1.0,
+            "goal_progress": 0.0,
+            "goal_target_total": 62693.085,
+            "goals_achieved": 0.0,
+            "has_cash_wallet": 1.0,
+            "income_cv": 0.0237,
+            "income_stability": 0.9769,
+            "late_month_share": 0.3382,
+            "late_month_share_max": 0.6105,
+            "low_balance_frequency": 0.78,
+            "mandatory_obligation_amount": 4524.335,
+            "mean_balance": 2502.5051,
+            "min_balance": 218.83,
+            "monthly_cash_out": 1483.54,
+            "monthly_expense": 21327.318,
+            "monthly_income": 28743.153,
+            "monthly_recurring_amount": 4975.232,
+            "monthly_surplus": 7415.835,
+            "months_negative_surplus": 0.0,
+            "months_observed": 5.0,
+            "obligation_count": 4.0,
+            "recurring_obligation_ratio": 0.2389,
+            "savings_rate": 0.2204,
+            "small_purchase_ratio": 0.0128,
+            "txn_per_month": 10.9,
+            "wallet_count": 4.0
+          },
+          "top_distinctive": [
+            {
+              "feature": "days_below_buffer",
+              "cluster_mean": 112.5,
+              "population_mean": 4.6,
+              "standardised_difference": 4.7405
+            },
+            {
+              "feature": "low_balance_frequency",
+              "cluster_mean": 0.78,
+              "population_mean": 0.0319,
+              "standardised_difference": 4.7053
+            },
+            {
+              "feature": "emergency_buffer_months",
+              "cluster_mean": 0.206,
+              "population_mean": 11.1535,
+              "standardised_difference": 2.6425
+            }
+          ]
+        }
+      ],
+      "external_alignment": {
+        "available": true,
+        "n_users": 50,
+        "flags": {
+          "end_month_shortage_label": {
+            "available": true,
+            "adjusted_rand_index": 0.0246,
+            "normalised_mutual_information": 0.0753,
+            "expected_dimensions": [
+              "late_month_share",
+              "late_month_share_max",
+              "days_below_buffer"
+            ],
+            "n": 50,
+            "positives": 38
+          },
+          "high_cash_dependency_label": {
+            "available": true,
+            "adjusted_rand_index": -0.0081,
+            "normalised_mutual_information": 0.0507,
+            "expected_dimensions": [
+              "cash_dependency",
+              "has_cash_wallet"
+            ],
+            "n": 50,
+            "positives": 29
+          },
+          "irregular_income_label": {
+            "available": true,
+            "adjusted_rand_index": 0.0024,
+            "normalised_mutual_information": 0.0787,
+            "expected_dimensions": [
+              "income_cv",
+              "income_stability"
+            ],
+            "n": 50,
+            "positives": 4
+          },
+          "overspending_label": {
+            "available": true,
+            "adjusted_rand_index": 0.2826,
+            "normalised_mutual_information": 0.2824,
+            "expected_dimensions": [
+              "expense_income_ratio",
+              "months_negative_surplus"
+            ],
+            "n": 50,
+            "positives": 28
+          },
+          "financial_pressure_label": {
+            "available": true,
+            "adjusted_rand_index": 0.2826,
+            "normalised_mutual_information": 0.2824,
+            "expected_dimensions": [
+              "emergency_buffer_months",
+              "months_negative_surplus"
+            ],
+            "n": 50,
+            "positives": 28
+          },
+          "goal_progress_label": {
+            "available": true,
+            "adjusted_rand_index": 0.3717,
+            "normalised_mutual_information": 0.4012,
+            "expected_dimensions": [
+              "goal_progress",
+              "funding_consistency",
+              "goal_count"
+            ],
+            "n": 50,
+            "positives": 27
+          }
+        },
+        "mean_adjusted_rand_index": 0.1593
+      },
+      "cluster_sizes": {
+        "0": 28,
+        "1": 3,
+        "2": 17,
+        "3": 2
+      }
+    },
+    "temporal_stability": {
+      "available": true,
+      "n_users": 50,
+      "adjusted_rand_index": 0.8571,
+      "identical_assignment_share": 0.34,
+      "train_k": 4,
+      "validation_k": 4
+    },
+    "cluster_labels": {
+      "3": "month-end stretchers",
+      "2": "goal-driven planners",
+      "1": "shock-prone spenders",
+      "0": "spending ahead of earnings"
+    }
+  },
+  "health": {
+    "fitted": true,
+    "caveat": "LEAKAGE BY CONSTRUCTION. The dataset generator derives both financial_profiles and behavior_labels by aggregating the same transactions these features are built from: label_savings_rate is close to the savings_rate feature, and the behaviour flags are thresholded versions of late_month_share, cash_dependency, expense_income_ratio and emergency_buffer_months. A model can therefore reach a very high R2 / F1 while learning nothing a rule could not, because it is re-deriving a statistic it was handed. Read the null_control and direct_feature_baseline rows beside every score: the honest claim is that the pipeline reproduces the ground truth reliably on unseen customers and unseen months, NOT that it predicts future financial behaviour. Proving the latter needs held-out real-customer data, which does not exist for this challenge.",
+    "features": [
+      "months_observed",
+      "monthly_income",
+      "monthly_expense",
+      "monthly_surplus",
+      "savings_rate",
+      "expense_income_ratio",
+      "late_month_share",
+      "late_month_share_max",
+      "cash_dependency",
+      "recurring_obligation_ratio",
+      "small_purchase_ratio",
+      "monthly_recurring_amount",
+      "monthly_cash_out",
+      "txn_per_month",
+      "anomaly_events",
+      "goal_contribution_monthly",
+      "funding_months",
+      "funding_consistency",
+      "ending_balance",
+      "mean_balance",
+      "min_balance",
+      "balance_volatility",
+      "months_negative_surplus",
+      "income_cv",
+      "income_stability",
+      "digital_ratio",
+      "days_below_buffer",
+      "low_balance_frequency",
+      "category_entropy",
+      "goal_count",
+      "goal_progress",
+      "goal_target_total",
+      "goals_achieved",
+      "mandatory_obligation_amount",
+      "obligation_count",
+      "emergency_buffer_months",
+      "has_cash_wallet",
+      "wallet_count",
+      "account_age_days",
+      "account_age_months",
+      "label_savings_rate",
+      "label_emergency_fund_months",
+      "label_cash_dependency",
+      "label_income_stability",
+      "label_end_month_shortage",
+      "label_high_cash_dependency",
+      "label_irregular_income",
+      "label_overspending",
+      "label_financial_pressure",
+      "label_goal_progress",
+      "label_periods_observed"
+    ],
+    "protected_columns_excluded": [
+      "age_group",
+      "occupation",
+      "location_type",
+      "top_category"
+    ],
+    "evaluation": {
+      "skipped": {
+        "irregular_income": "50 rows / 4 positives (need 40/5)"
+      },
+      "folds": {
+        "validation": {
+          "regression": {
+            "savings_rate": {
+              "mae": 0.024432937083142994,
+              "rmse": 0.05936785983757638,
+              "mape_percent": 42.847800028535794,
+              "r2": 0.9242185216958075,
+              "bias": -0.00010245542701937116,
+              "n": 50,
+              "train_mean_baseline": {
+                "mae": 0.17155511999999998,
+                "rmse": 0.2156601270610773,
+                "mape_percent": 236.2059180452965,
+                "r2": 0.0,
+                "bias": -3.885780586188048e-18,
+                "n": 50
+              },
+              "feature_baseline": {
+                "mae": 0.20025145731982102,
+                "rmse": 0.2417163124638232,
+                "mape_percent": 99.99641706743462,
+                "r2": -0.2562388117210157,
+                "bias": -0.10918224734890906,
+                "n": 50
+              },
+              "feature_baseline_driver": "savings_rate"
+            },
+            "emergency_fund_months": {
+              "mae": 0.4711339715704227,
+              "rmse": 0.8906951053819213,
+              "mape_percent": 6.252369244884568,
+              "r2": 0.9404817488075023,
+              "bias": 0.007692312037869691,
+              "n": 50,
+              "train_mean_baseline": {
+                "mae": 2.861103999999999,
+                "rmse": 3.650934022959057,
+                "mape_percent": 30.131811307741824,
+                "r2": 0.0,
+                "bias": -5.684341886080802e-16,
+                "n": 50
+              },
+              "feature_baseline": {
+                "mae": 1.8915154779148902,
+                "rmse": 3.8951638580301924,
+                "mape_percent": 14.788779654782862,
+                "r2": -0.13826529380240493,
+                "bias": -1.4120443180824338,
+                "n": 50
+              },
+              "feature_baseline_driver": "ending_balance"
+            },
+            "cash_dependency": {
+              "mae": 0.012039345767907106,
+              "rmse": 0.02201273050726058,
+              "mape_percent": 10.056325848237545,
+              "r2": 0.9423609322920834,
+              "bias": -0.0005030286787313114,
+              "n": 50,
+              "train_mean_baseline": {
+                "mae": 0.07219808,
+                "rmse": 0.09168862140963839,
+                "mape_percent": 70.3808515884804,
+                "r2": 0.0,
+                "bias": -1.5543122344752193e-17,
+                "n": 50
+              },
+              "feature_baseline": {
+                "mae": 0.16574748437990172,
+                "rmse": 0.18941647252642152,
+                "mape_percent": 99.99713657190094,
+                "r2": -3.2678053477739653,
+                "bias": -0.16574748437990172,
+                "n": 50
+              },
+              "feature_baseline_driver": "cash_dependency"
+            },
+            "income_stability": {
+              "mae": 0.010454485554291189,
+              "rmse": 0.02422891349259988,
+              "mape_percent": 1.5152916669462912,
+              "r2": 0.9501818901806862,
+              "bias": 0.0069042949204077145,
+              "n": 50,
+              "train_mean_baseline": {
+                "mae": 0.06972944000000003,
+                "rmse": 0.10855262163577624,
+                "mape_percent": 9.093447631064029,
+                "r2": 0.0,
+                "bias": -4.4408920985006264e-17,
+                "n": 50
+              },
+              "feature_baseline": {
+                "mae": 0.9263294650521634,
+                "rmse": 0.9326676891039245,
+                "mape_percent": 99.99715621641333,
+                "r2": -72.81986218743434,
+                "bias": -0.9263294650521634,
+                "n": 50
+              },
+              "feature_baseline_driver": "income_stability"
+            }
+          },
+          "classification": {
+            "end_month_shortage": {
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "specificity": 1.0,
+              "tp": 38,
+              "fp": 0,
+              "fn": 0,
+              "tn": 12,
+              "positives": 38,
+              "negatives": 12,
+              "n": 50,
+              "roc_auc": 1.0,
+              "average_precision": 1.0,
+              "lift_over_base_rate": 1.3157894736842106,
+              "majority_baseline_accuracy": 0.76,
+              "majority_class": 1
+            },
+            "high_cash_dependency": {
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "specificity": 1.0,
+              "tp": 29,
+              "fp": 0,
+              "fn": 0,
+              "tn": 21,
+              "positives": 29,
+              "negatives": 21,
+              "n": 50,
+              "roc_auc": 1.0,
+              "average_precision": 0.9999999999999999,
+              "lift_over_base_rate": 1.7241379310344829,
+              "majority_baseline_accuracy": 0.58,
+              "majority_class": 1
+            },
+            "overspending": {
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "specificity": 1.0,
+              "tp": 28,
+              "fp": 0,
+              "fn": 0,
+              "tn": 22,
+              "positives": 28,
+              "negatives": 22,
+              "n": 50,
+              "roc_auc": 1.0,
+              "average_precision": 1.0,
+              "lift_over_base_rate": 1.7857142857142856,
+              "majority_baseline_accuracy": 0.56,
+              "majority_class": 1
+            },
+            "financial_pressure": {
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "specificity": 1.0,
+              "tp": 28,
+              "fp": 0,
+              "fn": 0,
+              "tn": 22,
+              "positives": 28,
+              "negatives": 22,
+              "n": 50,
+              "roc_auc": 1.0,
+              "average_precision": 1.0,
+              "lift_over_base_rate": 1.7857142857142856,
+              "majority_baseline_accuracy": 0.56,
+              "majority_class": 1
+            },
+            "goal_progress": {
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "specificity": 1.0,
+              "tp": 7,
+              "fp": 0,
+              "fn": 0,
+              "tn": 43,
+              "positives": 7,
+              "negatives": 43,
+              "n": 50,
+              "roc_auc": 1.0,
+              "average_precision": 1.0,
+              "lift_over_base_rate": 7.142857142857142,
+              "majority_baseline_accuracy": 0.86,
+              "majority_class": 0
+            }
+          },
+          "baselines": {}
+        },
+        "test": {
+          "regression": {
+            "savings_rate": {
+              "mae": 0.025828119331318154,
+              "rmse": 0.059695154272129264,
+              "mape_percent": 45.852197518391016,
+              "r2": 0.9233806533572304,
+              "bias": -0.001999859628499747,
+              "n": 50,
+              "train_mean_baseline": {
+                "mae": 0.17155511999999998,
+                "rmse": 0.2156601270610773,
+                "mape_percent": 236.2059180452965,
+                "r2": 0.0,
+                "bias": -3.885780586188048e-18,
+                "n": 50
+              },
+              "feature_baseline": {
+                "mae": 0.2002515311759342,
+                "rmse": 0.241716411528817,
+                "mape_percent": 99.99703713304265,
+                "r2": -0.25623984143485123,
+                "bias": -0.10918228318306204,
+                "n": 50
+              },
+              "feature_baseline_driver": "savings_rate"
+            },
+            "emergency_fund_months": {
+              "mae": 0.5057514217486575,
+              "rmse": 0.908013103074035,
+              "mape_percent": 6.5896359732970815,
+              "r2": 0.9381447934055079,
+              "bias": -0.030999052565256466,
+              "n": 50,
+              "train_mean_baseline": {
+                "mae": 2.861103999999999,
+                "rmse": 3.650934022959057,
+                "mape_percent": 30.131811307741824,
+                "r2": 0.0,
+                "bias": -5.684341886080802e-16,
+                "n": 50
+              },
+              "feature_baseline": {
+                "mae": 1.0675903805412552,
+                "rmse": 3.7188486243656436,
+                "mape_percent": 8.202874395983635,
+                "r2": -0.03754999350936372,
+                "bias": -1.049629573136178,
+                "n": 50
+              },
+              "feature_baseline_driver": "ending_balance"
+            },
+            "cash_dependency": {
+              "mae": 0.011481982962570116,
+              "rmse": 0.02219615763429154,
+              "mape_percent": 9.998283646628307,
+              "r2": 0.9413963433686222,
+              "bias": -0.0013652476079274276,
+              "n": 50,
+              "train_mean_baseline": {
+                "mae": 0.07219808,
+                "rmse": 0.09168862140963839,
+                "mape_percent": 70.3808515884804,
+                "r2": 0.0,
+                "bias": -1.5543122344752193e-17,
+                "n": 50
+              },
+              "feature_baseline": {
+                "mae": 0.16574747397090778,
+                "rmse": 0.18941644481952558,
+                "mape_percent": 99.9971904916857,
+                "r2": -3.2678040992275372,
+                "bias": -0.16574747397090778,
+                "n": 50
+              },
+              "feature_baseline_driver": "cash_dependency"
+            },
+            "income_stability": {
+              "mae": 0.010442275138645256,
+              "rmse": 0.024125304216017652,
+              "mape_percent": 1.5142336226325752,
+              "r2": 0.950607050152836,
+              "bias": 0.006489507738524469,
+              "n": 50,
+              "train_mean_baseline": {
+                "mae": 0.06972944000000003,
+                "rmse": 0.10855262163577624,
+                "mape_percent": 9.093447631064029,
+                "r2": 0.0,
+                "bias": -4.4408920985006264e-17,
+                "n": 50
+              },
+              "feature_baseline": {
+                "mae": 0.9263294915209659,
+                "rmse": 0.9326677375306159,
+                "mape_percent": 99.99715586902573,
+                "r2": -72.81986985329823,
+                "bias": -0.9263294915209659,
+                "n": 50
+              },
+              "feature_baseline_driver": "income_stability"
+            }
+          },
+          "classification": {
+            "end_month_shortage": {
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "specificity": 1.0,
+              "tp": 38,
+              "fp": 0,
+              "fn": 0,
+              "tn": 12,
+              "positives": 38,
+              "negatives": 12,
+              "n": 50,
+              "roc_auc": 1.0,
+              "average_precision": 1.0,
+              "lift_over_base_rate": 1.3157894736842106,
+              "majority_baseline_accuracy": 0.76,
+              "majority_class": 1
+            },
+            "high_cash_dependency": {
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "specificity": 1.0,
+              "tp": 29,
+              "fp": 0,
+              "fn": 0,
+              "tn": 21,
+              "positives": 29,
+              "negatives": 21,
+              "n": 50,
+              "roc_auc": 1.0,
+              "average_precision": 0.9999999999999999,
+              "lift_over_base_rate": 1.7241379310344829,
+              "majority_baseline_accuracy": 0.58,
+              "majority_class": 1
+            },
+            "overspending": {
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "specificity": 1.0,
+              "tp": 28,
+              "fp": 0,
+              "fn": 0,
+              "tn": 22,
+              "positives": 28,
+              "negatives": 22,
+              "n": 50,
+              "roc_auc": 1.0,
+              "average_precision": 1.0,
+              "lift_over_base_rate": 1.7857142857142856,
+              "majority_baseline_accuracy": 0.56,
+              "majority_class": 1
+            },
+            "financial_pressure": {
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "specificity": 1.0,
+              "tp": 28,
+              "fp": 0,
+              "fn": 0,
+              "tn": 22,
+              "positives": 28,
+              "negatives": 22,
+              "n": 50,
+              "roc_auc": 1.0,
+              "average_precision": 1.0,
+              "lift_over_base_rate": 1.7857142857142856,
+              "majority_baseline_accuracy": 0.56,
+              "majority_class": 1
+            },
+            "goal_progress": {
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "specificity": 1.0,
+              "tp": 7,
+              "fp": 0,
+              "fn": 0,
+              "tn": 43,
+              "positives": 7,
+              "negatives": 43,
+              "n": 50,
+              "roc_auc": 1.0,
+              "average_precision": 1.0,
+              "lift_over_base_rate": 7.142857142857142,
+              "majority_baseline_accuracy": 0.86,
+              "majority_class": 0
+            }
+          },
+          "baselines": {}
+        }
+      },
+      "direct_feature_baseline": {
+        "savings_rate": {
+          "mae": 0.004762279835936516,
+          "rmse": 0.013225004819519357,
+          "mape_percent": 6.018089674541873,
+          "r2": 0.996239444830118,
+          "bias": 0.001844976827037324,
+          "n": 50
+        },
+        "emergency_fund_months": {
+          "mae": 1.0675903805412552,
+          "rmse": 3.7188486243656436,
+          "mape_percent": 8.202874395983635,
+          "r2": -0.03754999350936372,
+          "bias": -1.049629573136178,
+          "n": 50
+        },
+        "cash_dependency": {
+          "mae": 2.336059879358105e-05,
+          "rmse": 2.7253575169603207e-05,
+          "mape_percent": 0.02291384596098298,
+          "r2": 0.9999999116480625,
+          "bias": 4.785715908605555e-06,
+          "n": 50
+        },
+        "income_stability": {
+          "mae": 2.7604381439541027e-05,
+          "rmse": 3.0334210115326933e-05,
+          "mape_percent": 0.003043756497002133,
+          "r2": 0.9999999219119193,
+          "bias": 3.006899657582718e-06,
+          "n": 50
+        }
+      },
+      "null_control": {
+        "regression": {
+          "savings_rate": {
+            "mae": 0.14664721938040287,
+            "rmse": 0.1858007852401825,
+            "mape_percent": 129.52792237523832,
+            "r2": 0.2577411631956573,
+            "bias": 0.017130664182818896,
+            "n": 50,
+            "train_mean_baseline": {
+              "mae": 0.17155511999999998,
+              "rmse": 0.2156601270610773,
+              "mape_percent": 236.2059180452965,
+              "r2": 0.0,
+              "bias": -3.885780586188048e-18,
+              "n": 50
+            }
+          },
+          "emergency_fund_months": {
+            "mae": 2.8996519129678746,
+            "rmse": 3.5947048762037137,
+            "mape_percent": 30.68455882886471,
+            "r2": 0.030565408905102176,
+            "bias": -0.011381575129693183,
+            "n": 50,
+            "train_mean_baseline": {
+              "mae": 2.861103999999999,
+              "rmse": 3.650934022959057,
+              "mape_percent": 30.131811307741824,
+              "r2": 0.0,
+              "bias": -5.684341886080802e-16,
+              "n": 50
+            }
+          },
+          "cash_dependency": {
+            "mae": 0.07953026375032882,
+            "rmse": 0.10286653009943562,
+            "mape_percent": 74.86066561071705,
+            "r2": -0.2586856908776298,
+            "bias": -0.005200342937895566,
+            "n": 50,
+            "train_mean_baseline": {
+              "mae": 0.07219808,
+              "rmse": 0.09168862140963839,
+              "mape_percent": 70.3808515884804,
+              "r2": 0.0,
+              "bias": -1.5543122344752193e-17,
+              "n": 50
+            }
+          },
+          "income_stability": {
+            "mae": 0.07050256405636335,
+            "rmse": 0.1180368442501116,
+            "mape_percent": 9.054249311142623,
+            "r2": -0.18237311746308582,
+            "bias": 0.0012799357147235302,
+            "n": 50,
+            "train_mean_baseline": {
+              "mae": 0.06972944000000003,
+              "rmse": 0.10855262163577624,
+              "mape_percent": 9.093447631064029,
+              "r2": 0.0,
+              "bias": -4.4408920985006264e-17,
+              "n": 50
+            }
+          }
+        },
+        "classification": {
+          "end_month_shortage": {
+            "accuracy": 0.68,
+            "precision": 0.84375,
+            "recall": 0.7105263157894737,
+            "f1": 0.7714285714285714,
+            "specificity": 0.5833333333333334,
+            "tp": 27,
+            "fp": 5,
+            "fn": 11,
+            "tn": 7,
+            "positives": 38,
+            "negatives": 12,
+            "n": 50,
+            "roc_auc": 0.6776315789473685,
+            "average_precision": 0.8603416124990158,
+            "lift_over_base_rate": 0.9349030470914127
+          },
+          "high_cash_dependency": {
+            "accuracy": 0.58,
+            "precision": 0.625,
+            "recall": 0.6896551724137931,
+            "f1": 0.6557377049180328,
+            "specificity": 0.42857142857142855,
+            "tp": 20,
+            "fp": 12,
+            "fn": 9,
+            "tn": 9,
+            "positives": 29,
+            "negatives": 21,
+            "n": 50,
+            "roc_auc": 0.5615763546798029,
+            "average_precision": 0.632278167490749,
+            "lift_over_base_rate": 1.189060642092747
+          },
+          "overspending": {
+            "accuracy": 0.3,
+            "precision": 0.37037037037037035,
+            "recall": 0.35714285714285715,
+            "f1": 0.36363636363636365,
+            "specificity": 0.22727272727272727,
+            "tp": 10,
+            "fp": 17,
+            "fn": 18,
+            "tn": 5,
+            "positives": 28,
+            "negatives": 22,
+            "n": 50,
+            "roc_auc": 0.2711038961038961,
+            "average_precision": 0.5005809830190203,
+            "lift_over_base_rate": 0.6377551020408163
+          },
+          "financial_pressure": {
+            "accuracy": 0.52,
+            "precision": 0.5714285714285714,
+            "recall": 0.5714285714285714,
+            "f1": 0.5714285714285714,
+            "specificity": 0.45454545454545453,
+            "tp": 16,
+            "fp": 12,
+            "fn": 12,
+            "tn": 10,
+            "positives": 28,
+            "negatives": 22,
+            "n": 50,
+            "roc_auc": 0.5892857142857142,
+            "average_precision": 0.6826905813363381,
+            "lift_over_base_rate": 1.020408163265306
+          },
+          "goal_progress": {
+            "accuracy": 0.7,
+            "precision": 0.21428571428571427,
+            "recall": 0.42857142857142855,
+            "f1": 0.2857142857142857,
+            "specificity": 0.7441860465116279,
+            "tp": 3,
+            "fp": 11,
+            "fn": 4,
+            "tn": 32,
+            "positives": 7,
+            "negatives": 43,
+            "n": 50,
+            "roc_auc": 0.7209302325581395,
+            "average_precision": 0.27972406353845886,
+            "lift_over_base_rate": 3.0612244897959178
+          }
+        }
+      },
+      "honest_verdict": [
+        {
+          "target": "savings_rate",
+          "model_mae": 0.025828119331318154,
+          "train_mean_baseline_mae": 0.17155511999999998,
+          "direct_feature_baseline_mae": 0.004762279835936516,
+          "verdict": "no_gain_over_rule",
+          "null_control_roc_auc": null
+        },
+        {
+          "target": "emergency_fund_months",
+          "model_mae": 0.5057514217486575,
+          "train_mean_baseline_mae": 2.861103999999999,
+          "direct_feature_baseline_mae": 1.0675903805412552,
+          "verdict": "beats_trivial",
+          "null_control_roc_auc": null
+        },
+        {
+          "target": "cash_dependency",
+          "model_mae": 0.011481982962570116,
+          "train_mean_baseline_mae": 0.07219808,
+          "direct_feature_baseline_mae": 2.336059879358105e-05,
+          "verdict": "no_gain_over_rule",
+          "null_control_roc_auc": null
+        },
+        {
+          "target": "income_stability",
+          "model_mae": 0.010442275138645256,
+          "train_mean_baseline_mae": 0.06972944000000003,
+          "direct_feature_baseline_mae": 2.7604381439541027e-05,
+          "verdict": "no_gain_over_rule",
+          "null_control_roc_auc": null
+        }
+      ],
+      "caveat": "LEAKAGE BY CONSTRUCTION. The dataset generator derives both financial_profiles and behavior_labels by aggregating the same transactions these features are built from: label_savings_rate is close to the savings_rate feature, and the behaviour flags are thresholded versions of late_month_share, cash_dependency, expense_income_ratio and emergency_buffer_months. A model can therefore reach a very high R2 / F1 while learning nothing a rule could not, because it is re-deriving a statistic it was handed. Read the null_control and direct_feature_baseline rows beside every score: the honest claim is that the pipeline reproduces the ground truth reliably on unseen customers and unseen months, NOT that it predicts future financial behaviour. Proving the latter needs held-out real-customer data, which does not exist for this challenge."
+    },
+    "global_treeshap_importance": {
+      "savings_rate": [
+        {
+          "feature": "label_savings_rate",
+          "mean_abs_shap": 0.09458444761499689
+        },
+        {
+          "feature": "savings_rate",
+          "mean_abs_shap": 0.02710177001685849
+        },
+        {
+          "feature": "expense_income_ratio",
+          "mean_abs_shap": 0.017998220092387517
+        },
+        {
+          "feature": "label_emergency_fund_months",
+          "mean_abs_shap": 0.013736635682814382
+        },
+        {
+          "feature": "monthly_surplus",
+          "mean_abs_shap": 0.006623847700120156
+        },
+        {
+          "feature": "months_negative_surplus",
+          "mean_abs_shap": 0.004011717341065372
+        },
+        {
+          "feature": "goal_target_total",
+          "mean_abs_shap": 0.003637135321781242
+        },
+        {
+          "feature": "label_overspending",
+          "mean_abs_shap": 0.003553975738812169
+        },
+        {
+          "feature": "label_financial_pressure",
+          "mean_abs_shap": 0.0012006081909986522
+        },
+        {
+          "feature": "goal_contribution_monthly",
+          "mean_abs_shap": 0.0012000038651453875
+        },
+        {
+          "feature": "txn_per_month",
+          "mean_abs_shap": 0.0011151365241445596
+        },
+        {
+          "feature": "account_age_days",
+          "mean_abs_shap": 0.000933778116177191
+        }
+      ],
+      "emergency_fund_months": [
+        {
+          "feature": "label_emergency_fund_months",
+          "mean_abs_shap": 1.9338901280655127
+        },
+        {
+          "feature": "label_savings_rate",
+          "mean_abs_shap": 0.2576061600673177
+        },
+        {
+          "feature": "expense_income_ratio",
+          "mean_abs_shap": 0.2417870279847215
+        },
+        {
+          "feature": "savings_rate",
+          "mean_abs_shap": 0.11256670123382971
+        },
+        {
+          "feature": "monthly_surplus",
+          "mean_abs_shap": 0.06397356848662766
+        },
+        {
+          "feature": "emergency_buffer_months",
+          "mean_abs_shap": 0.058018982430823776
+        },
+        {
+          "feature": "anomaly_events",
+          "mean_abs_shap": 0.038168665600240875
+        },
+        {
+          "feature": "label_overspending",
+          "mean_abs_shap": 0.0374809695582259
+        },
+        {
+          "feature": "cash_dependency",
+          "mean_abs_shap": 0.027839675918676567
+        },
+        {
+          "feature": "label_income_stability",
+          "mean_abs_shap": 0.022978389681689814
+        },
+        {
+          "feature": "monthly_expense",
+          "mean_abs_shap": 0.019926754954260387
+        },
+        {
+          "feature": "income_cv",
+          "mean_abs_shap": 0.019099328208096497
+        }
+      ],
+      "cash_dependency": [
+        {
+          "feature": "label_cash_dependency",
+          "mean_abs_shap": 0.04842223684677069
+        },
+        {
+          "feature": "label_high_cash_dependency",
+          "mean_abs_shap": 0.008666013997838999
+        },
+        {
+          "feature": "cash_dependency",
+          "mean_abs_shap": 0.007229985909252164
+        },
+        {
+          "feature": "digital_ratio",
+          "mean_abs_shap": 0.0039042207478109576
+        },
+        {
+          "feature": "label_emergency_fund_months",
+          "mean_abs_shap": 0.002120394318620565
+        },
+        {
+          "feature": "mean_balance",
+          "mean_abs_shap": 0.0014692072344570236
+        },
+        {
+          "feature": "balance_volatility",
+          "mean_abs_shap": 0.0010697776143637735
+        },
+        {
+          "feature": "ending_balance",
+          "mean_abs_shap": 0.001040629009470307
+        },
+        {
+          "feature": "wallet_count",
+          "mean_abs_shap": 0.0007716414193405732
+        },
+        {
+          "feature": "txn_per_month",
+          "mean_abs_shap": 0.0007599300058041074
+        },
+        {
+          "feature": "monthly_expense",
+          "mean_abs_shap": 0.0006492406070076649
+        },
+        {
+          "feature": "emergency_buffer_months",
+          "mean_abs_shap": 0.0005629232022898822
+        }
+      ],
+      "income_stability": [
+        {
+          "feature": "income_stability",
+          "mean_abs_shap": 0.03578216740163486
+        },
+        {
+          "feature": "label_income_stability",
+          "mean_abs_shap": 0.014896686528344987
+        },
+        {
+          "feature": "income_cv",
+          "mean_abs_shap": 0.009970508993719363
+        },
+        {
+          "feature": "small_purchase_ratio",
+          "mean_abs_shap": 0.0009942818814444299
+        },
+        {
+          "feature": "goal_contribution_monthly",
+          "mean_abs_shap": 0.0008661092967621773
+        },
+        {
+          "feature": "txn_per_month",
+          "mean_abs_shap": 0.0008215309403466244
+        },
+        {
+          "feature": "emergency_buffer_months",
+          "mean_abs_shap": 0.0006043607727106336
+        },
+        {
+          "feature": "digital_ratio",
+          "mean_abs_shap": 0.00042256497705560266
+        },
+        {
+          "feature": "label_emergency_fund_months",
+          "mean_abs_shap": 0.0003489031225304026
+        },
+        {
+          "feature": "late_month_share",
+          "mean_abs_shap": 0.0003481144035983455
+        },
+        {
+          "feature": "months_negative_surplus",
+          "mean_abs_shap": 0.00032132283992276846
+        },
+        {
+          "feature": "category_entropy",
+          "mean_abs_shap": 0.00029339921472997074
+        }
+      ]
+    }
+  }
+}

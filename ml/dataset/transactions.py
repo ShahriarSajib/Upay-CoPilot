@@ -106,6 +106,7 @@ def generate_transactions(
     income: pd.DataFrame,
     recurring: pd.DataFrame,
     months: list[pd.Timestamp],
+    volume_scale: float = 1.0,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Generate the transaction log and the injected-pattern ground truth.
 
@@ -234,6 +235,13 @@ def generate_transactions(
         )
         category_probs = category_probs / category_probs.sum()
         low_count, high_count = PERSONA_TRANSACTION_COUNT[persona]
+        if volume_scale != 1.0:
+            # Scaling the persona band keeps the persona ordering intact while
+            # letting a small population stay inside a row budget. At least two
+            # transactions per month is the floor below which recurring bills
+            # and payday cash-outs stop being representable.
+            low_count = max(2, round(low_count * volume_scale))
+            high_count = max(low_count + 1, round(high_count * volume_scale))
 
         for month in months:
             month_end = month + pd.offsets.MonthBegin(1)

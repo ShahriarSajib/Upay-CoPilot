@@ -1,0 +1,235 @@
+{
+  "name": "health",
+  "task": "predict ground-truth financial profile + behaviour flags",
+  "trained_at": "2026-10-04T00:44:10.506377+00:00",
+  "train_window": "2026-01..2026-05",
+  "validation_window": "2026-06..2026-07",
+  "features": [
+    "months_observed",
+    "monthly_income",
+    "monthly_expense",
+    "monthly_surplus",
+    "savings_rate",
+    "expense_income_ratio",
+    "late_month_share",
+    "late_month_share_max",
+    "cash_dependency",
+    "recurring_obligation_ratio",
+    "small_purchase_ratio",
+    "monthly_recurring_amount",
+    "monthly_cash_out",
+    "txn_per_month",
+    "anomaly_events",
+    "goal_contribution_monthly",
+    "funding_months",
+    "funding_consistency",
+    "ending_balance",
+    "mean_balance",
+    "min_balance",
+    "balance_volatility",
+    "months_negative_surplus",
+    "income_cv",
+    "income_stability",
+    "digital_ratio",
+    "days_below_buffer",
+    "low_balance_frequency",
+    "category_entropy",
+    "goal_count",
+    "goal_progress",
+    "goal_target_total",
+    "goals_achieved",
+    "mandatory_obligation_amount",
+    "obligation_count",
+    "emergency_buffer_months",
+    "has_cash_wallet",
+    "wallet_count",
+    "account_age_days",
+    "account_age_months",
+    "label_savings_rate",
+    "label_emergency_fund_months",
+    "label_cash_dependency",
+    "label_income_stability",
+    "label_end_month_shortage",
+    "label_high_cash_dependency",
+    "label_irregular_income",
+    "label_overspending",
+    "label_financial_pressure",
+    "label_goal_progress",
+    "label_periods_observed"
+  ],
+  "metrics": {
+    "validation": {
+      "regression": {
+        "savings_rate": {
+          "mae": 0.024432937083142994,
+          "rmse": 0.05936785983757638,
+          "r2": 0.9242185216958075
+        },
+        "emergency_fund_months": {
+          "mae": 0.4711339715704227,
+          "rmse": 0.8906951053819213,
+          "r2": 0.9404817488075023
+        },
+        "cash_dependency": {
+          "mae": 0.012039345767907106,
+          "rmse": 0.02201273050726058,
+          "r2": 0.9423609322920834
+        },
+        "income_stability": {
+          "mae": 0.010454485554291189,
+          "rmse": 0.02422891349259988,
+          "r2": 0.9501818901806862
+        }
+      },
+      "classification": {
+        "end_month_shortage": {
+          "f1": 1.0,
+          "recall": 1.0,
+          "precision": 1.0
+        },
+        "high_cash_dependency": {
+          "f1": 1.0,
+          "recall": 1.0,
+          "precision": 1.0
+        },
+        "overspending": {
+          "f1": 1.0,
+          "recall": 1.0,
+          "precision": 1.0
+        },
+        "financial_pressure": {
+          "f1": 1.0,
+          "recall": 1.0,
+          "precision": 1.0
+        },
+        "goal_progress": {
+          "f1": 1.0,
+          "recall": 1.0,
+          "precision": 1.0
+        }
+      }
+    },
+    "test": {
+      "regression": {
+        "savings_rate": {
+          "mae": 0.025828119331318154,
+          "rmse": 0.059695154272129264,
+          "r2": 0.9233806533572304
+        },
+        "emergency_fund_months": {
+          "mae": 0.5057514217486575,
+          "rmse": 0.908013103074035,
+          "r2": 0.9381447934055079
+        },
+        "cash_dependency": {
+          "mae": 0.011481982962570116,
+          "rmse": 0.02219615763429154,
+          "r2": 0.9413963433686222
+        },
+        "income_stability": {
+          "mae": 0.010442275138645256,
+          "rmse": 0.024125304216017652,
+          "r2": 0.950607050152836
+        }
+      },
+      "classification": {
+        "end_month_shortage": {
+          "f1": 1.0,
+          "recall": 1.0,
+          "precision": 1.0
+        },
+        "high_cash_dependency": {
+          "f1": 1.0,
+          "recall": 1.0,
+          "precision": 1.0
+        },
+        "overspending": {
+          "f1": 1.0,
+          "recall": 1.0,
+          "precision": 1.0
+        },
+        "financial_pressure": {
+          "f1": 1.0,
+          "recall": 1.0,
+          "precision": 1.0
+        },
+        "goal_progress": {
+          "f1": 1.0,
+          "recall": 1.0,
+          "precision": 1.0
+        }
+      }
+    }
+  },
+  "baselines": {
+    "validation": {
+      "savings_rate": {
+        "mae": 0.17155511999999998,
+        "rmse": 0.2156601270610773,
+        "mape_percent": 236.2059180452965,
+        "r2": 0.0,
+        "bias": -3.885780586188048e-18,
+        "n": 50
+      },
+      "emergency_fund_months": {
+        "mae": 2.861103999999999,
+        "rmse": 3.650934022959057,
+        "mape_percent": 30.131811307741824,
+        "r2": 0.0,
+        "bias": -5.684341886080802e-16,
+        "n": 50
+      },
+      "cash_dependency": {
+        "mae": 0.07219808,
+        "rmse": 0.09168862140963839,
+        "mape_percent": 70.3808515884804,
+        "r2": 0.0,
+        "bias": -1.5543122344752193e-17,
+        "n": 50
+      },
+      "income_stability": {
+        "mae": 0.06972944000000003,
+        "rmse": 0.10855262163577624,
+        "mape_percent": 9.093447631064029,
+        "r2": 0.0,
+        "bias": -4.4408920985006264e-17,
+        "n": 50
+      }
+    },
+    "test": {
+      "savings_rate": {
+        "mae": 0.17155511999999998,
+        "rmse": 0.2156601270610773,
+        "mape_percent": 236.2059180452965,
+        "r2": 0.0,
+        "bias": -3.885780586188048e-18,
+        "n": 50
+      },
+      "emergency_fund_months": {
+        "mae": 2.861103999999999,
+        "rmse": 3.650934022959057,
+        "mape_percent": 30.131811307741824,
+        "r2": 0.0,
+        "bias": -5.684341886080802e-16,
+        "n": 50
+      },
+      "cash_dependency": {
+        "mae": 0.07219808,
+        "rmse": 0.09168862140963839,
+        "mape_percent": 70.3808515884804,
+        "r2": 0.0,
+        "bias": -1.5543122344752193e-17,
+        "n": 50
+      },
+      "income_stability": {
+        "mae": 0.06972944000000003,
+        "rmse": 0.10855262163577624,
+        "mape_percent": 9.093447631064029,
+        "r2": 0.0,
+        "bias": -4.4408920985006264e-17,
+        "n": 50
+      }
+    }
+  },
+  "notes": "LEAKAGE BY CONSTRUCTION. The dataset generator derives both financial_profiles and behavior_labels by aggregating the same transactions these features are built from: label_savings_rate is close to the savings_rate feature, and the behaviour flags are thresholded versions of late_month_share, cash_dependency, expense_income_ratio and emergency_buffer_months. A model can therefore reach a very high R2 / F1 while learning nothing a rule could not, because it is re-deriving a statistic it was handed. Read the null_control and direct_feature_baseline rows beside every score: the honest claim is that the pipeline reproduces the ground truth reliably on unseen customers and unseen months, NOT that it predicts future financial behaviour. Proving the latter needs held-out real-customer data, which does not exist for this challenge. || Expanding-window evaluation: the validation cut's features are built from 2026-01..07 and the test cut's from 2026-01..09, because the financial_profiles label is a full-horizon property of a customer. Protected attributes (age_group, occupation, location_type) are excluded from the design matrix so the score cannot become a proxy for who the customer is. Explanation uses LightGBM pred_contrib, which is exact TreeSHAP computed inside the model, not a sampled approximation. The customer-facing health score itself stays the deterministic ladder engine in app.engines.health; this model is a calibration layer that states its own error."
+}

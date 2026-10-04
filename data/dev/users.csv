@@ -1,0 +1,51 @@
+user_id,full_name,name_bn,age_group,occupation,location_type,account_age_days,persona,monthly_income_base,expense_ratio,income_cv,cash_out_rate,digital_ratio,target_savings_rate,goal_count,anomaly_rate
+U00001,Farhana Akter Mim,ফারহানা আক্তার মিম,25-34,private_employee,urban,623,end_month_shortage,55106.33,0.95,0.1,0.22,0.7,0.02,1,0.06
+U00002,Rukhsana Begum,রুক্সানা বেগম,25-34,self_employed,urban,774,end_month_shortage,75241.4,0.95,0.1,0.22,0.7,0.02,1,0.06
+U00003,Aminul Haque,আমিনুল হক,35-44,private_employee,urban,307,stable_saver,44874.81,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00004,Sunita Akter,সুনিতা আক্তার,35-44,private_employee,urban,1298,high_cash_dependency,47156.77,0.85,0.12,0.62,0.25,0.05,1,0.06
+U00005,Jubayer Rahman,জুবায়ের রহমান,18-24,freelancer,urban,1218,financial_pressure,47999.04,1.15,0.14,0.38,0.5,0.0,1,0.12
+U00006,Ayesha Rahman,আয়েশা রহমান,18-24,freelancer,rural,1456,irregular_income,43144.74,0.8,0.55,0.2,0.6,0.05,1,0.08
+U00007,Nusrat Jahan Mim,নুসরাত জাহান মিম,18-24,business,rural,947,irregular_income,50281.07,0.8,0.55,0.2,0.6,0.05,1,0.08
+U00008,Runa Talukder,রুনা তালুকদার,25-34,private_employee,urban,1012,end_month_shortage,67172.75,0.95,0.1,0.22,0.7,0.02,1,0.06
+U00009,Shoma Khatun,শোমা খাতুন,25-34,business,semi_urban,1352,end_month_shortage,132267.38,0.95,0.1,0.22,0.7,0.02,1,0.06
+U00010,Sabrina Yeasmin,সাবরিনা ইয়াসমিন,25-34,business,urban,1289,sudden_anomaly,128935.52,0.8,0.11,0.2,0.7,0.12,2,0.55
+U00011,Afsana Mim,আফসানা মিম,25-34,business,rural,428,sudden_anomaly,102419.59,0.8,0.11,0.2,0.7,0.12,2,0.55
+U00012,Trisha Chakma,তৃষা চক্রমা,18-24,freelancer,rural,370,goal_oriented,31413.36,0.7,0.09,0.12,0.78,0.28,3,0.04
+U00013,Rashmi Das,রাশমী দাস,25-34,private_employee,rural,397,stable_saver,30944.96,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00014,Nusrat Jahan,নুসরাত জাহান,25-34,private_employee,urban,818,stable_saver,52520.07,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00015,Nayantara Sen,নায়ন্তরা সেন,18-24,self_employed,semi_urban,1512,financial_pressure,10741.71,1.15,0.14,0.38,0.5,0.0,1,0.12
+U00016,Arif Chowdhury Mim,আরিফ চৌধুরী মিম,25-34,business,semi_urban,1194,irregular_income,200683.09,0.8,0.55,0.2,0.6,0.05,1,0.08
+U00017,Sohel Mia,সোহেল মিয়া,18-24,private_employee,semi_urban,1647,end_month_shortage,21485.18,0.95,0.1,0.22,0.7,0.02,1,0.06
+U00018,Sadia Islam,সাদিয়া ইসলাম,18-24,self_employed,rural,1631,financial_pressure,13198.69,1.15,0.14,0.38,0.5,0.0,1,0.12
+U00019,Tahmina Akter,তাহমিনা আক্তার,18-24,other,urban,656,high_cash_dependency,17499.77,0.85,0.12,0.62,0.25,0.05,1,0.06
+U00020,Maliha Sultana,মালিহা সুলতানা,35-44,self_employed,rural,977,end_month_shortage,70454.42,0.95,0.1,0.22,0.7,0.02,1,0.06
+U00021,Rifat Khan,রিফাত খান,35-44,self_employed,urban,746,seasonal_spender,40913.77,0.88,0.15,0.25,0.62,0.04,1,0.05
+U00022,Farhana Akter,ফারহানা আক্তার,35-44,business,urban,1610,high_cash_dependency,97554.15,0.85,0.12,0.62,0.25,0.05,1,0.06
+U00023,Shafiq Alam,শফিক আলম,25-34,business,rural,502,irregular_income,58100.02,0.8,0.55,0.2,0.6,0.05,1,0.08
+U00024,Anwar Hossain,আনোয়ার হোসাইন,45-54,self_employed,urban,534,stable_saver,37085.21,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00025,Kamrul Islam,কামরুল ইসলাম,25-34,private_employee,urban,617,end_month_shortage,46093.11,0.95,0.1,0.22,0.7,0.02,1,0.06
+U00026,Sabbir Ahmed,সাব্বির আহমেদ,25-34,freelancer,semi_urban,1511,stable_saver,64526.08,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00027,Mizanur Rahman Emon,মিজানুর রহমান ইমন,45-54,private_employee,urban,469,sudden_anomaly,49868.0,0.8,0.11,0.2,0.7,0.12,2,0.55
+U00028,Arif Chowdhury,আরিফ চৌধুরী,45-54,freelancer,urban,1168,stable_saver,105411.04,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00029,Habibur Rahman,হাবিবুর রহমান,18-24,freelancer,urban,1105,goal_oriented,51720.8,0.7,0.09,0.12,0.78,0.28,3,0.04
+U00030,Amitava Das,অমিতাভ দাস,45-54,business,semi_urban,1543,seasonal_spender,115448.08,0.88,0.15,0.25,0.62,0.04,1,0.05
+U00031,Rukhsana Ara,রুক্সানা আরা,45-54,private_employee,semi_urban,299,stable_saver,35385.63,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00032,Tanvir Ahmed,তানভীর আহমেদ,35-44,self_employed,semi_urban,443,end_month_shortage,44571.91,0.95,0.1,0.22,0.7,0.02,1,0.06
+U00033,Mehedi Hasan,মেহেদী হাসান,25-34,self_employed,urban,1250,high_cash_dependency,33356.3,0.85,0.12,0.62,0.25,0.05,1,0.06
+U00034,Rasel Uddin,রাশেল উদ্দিন,18-24,self_employed,urban,561,high_cash_dependency,41085.37,0.85,0.12,0.62,0.25,0.05,1,0.06
+U00035,Imran Hossain,ইমরান হোসাইন,25-34,private_employee,rural,1509,stable_saver,26683.02,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00036,Zarin Tasnim,জারিন তাসনিম,18-24,private_employee,urban,1519,end_month_shortage,20117.34,0.95,0.1,0.22,0.7,0.02,1,0.06
+U00037,Shamima Akter,শামিমা আক্তার,25-34,freelancer,urban,353,goal_oriented,54488.65,0.7,0.09,0.12,0.78,0.28,3,0.04
+U00038,Sharmeen Akter,শারমিন আক্তার,45-54,self_employed,urban,615,stable_saver,51646.92,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00039,Shafqat Hossain,শফকাত হোসাইন,25-34,freelancer,urban,647,financial_pressure,38702.93,1.15,0.14,0.38,0.5,0.0,1,0.12
+U00040,Nabila Chowdhury,নাবিলা চৌধুরী,45-54,private_employee,urban,1528,seasonal_spender,56749.99,0.88,0.15,0.25,0.62,0.04,1,0.05
+U00041,Alamgir Kabir,আলমগীর কবির,45-54,other,semi_urban,1538,stable_saver,47132.43,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00042,Nazmul Hassan,নাজমুল হাসান,18-24,self_employed,urban,1523,goal_oriented,49665.97,0.7,0.09,0.12,0.78,0.28,3,0.04
+U00043,Rakib Hasan,রাকিব হাসান,35-44,business,urban,967,seasonal_spender,72446.09,0.88,0.15,0.25,0.62,0.04,1,0.05
+U00044,Nazmul Abedin,নাজমুল আবেদীন,18-24,freelancer,urban,923,irregular_income,32476.01,0.8,0.55,0.2,0.6,0.05,1,0.08
+U00045,Mizanur Rahman,মিজানুর রহমান,25-34,freelancer,rural,842,stable_saver,92099.59,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00046,Junaid Alam,জুনাইদ আলম,35-44,private_employee,semi_urban,1102,sudden_anomaly,64617.57,0.8,0.11,0.2,0.7,0.12,2,0.55
+U00047,Sajidur Rahman,সাজিদুর রহমান,25-34,freelancer,semi_urban,1072,goal_oriented,39677.25,0.7,0.09,0.12,0.78,0.28,3,0.04
+U00048,Sumaiya Khatun,সুমাইয়া খাতুন,25-34,self_employed,semi_urban,1144,stable_saver,33496.29,0.62,0.08,0.1,0.8,0.25,2,0.04
+U00049,Momena Khatun,মোমেনা খাতুন,18-24,other,rural,399,goal_oriented,30121.78,0.7,0.09,0.12,0.78,0.28,3,0.04
+U00050,Priya Barua,প্রিয়া বড়ুয়া,35-44,self_employed,rural,348,irregular_income,28604.28,0.8,0.55,0.2,0.6,0.05,1,0.08

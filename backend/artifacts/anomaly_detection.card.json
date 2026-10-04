@@ -1,0 +1,76 @@
+{
+  "name": "anomaly_detection",
+  "task": "rank unusual spending transactions for review",
+  "trained_at": "2026-10-04T00:44:10.506377+00:00",
+  "train_window": "2026-01..2026-05",
+  "validation_window": "2026-06..2026-07",
+  "features": [
+    "amount",
+    "amount_vs_user_median",
+    "amount_vs_user_p90",
+    "amount_vs_user_monthly_expense",
+    "category_amount_zscore",
+    "category_frequency_for_user",
+    "balance_to_amount",
+    "is_cash_out",
+    "is_recurring"
+  ],
+  "metrics": {
+    "2026-08": {
+      "precision": 0.625,
+      "recall": 0.2777777777777778,
+      "f1": 0.3846153846153846,
+      "true_positive": 5,
+      "false_positive": 3,
+      "false_negative": 13,
+      "n": 668,
+      "false_positive_rate": 0.004615384615384616,
+      "average_precision": 0.27860923421238437,
+      "precision_at_k": 0.12,
+      "baseline_random_f1": 0.012
+    },
+    "2026-09": {
+      "precision": 0.3333333333333333,
+      "recall": 0.6,
+      "f1": 0.42857142857142855,
+      "true_positive": 3,
+      "false_positive": 6,
+      "false_negative": 2,
+      "n": 674,
+      "false_positive_rate": 0.008968609865470852,
+      "average_precision": 0.31520015670264645,
+      "precision_at_k": 0.06,
+      "baseline_random_f1": 0.012
+    },
+    "validation_pooled": {
+      "precision": 0.7647058823529411,
+      "recall": 0.52,
+      "f1": 0.6190476190476191,
+      "true_positive": 13,
+      "false_positive": 4,
+      "false_negative": 12,
+      "n": 1383,
+      "false_positive_rate": 0.0029455081001472753,
+      "average_precision": 0.5007627597148212,
+      "precision_at_k": 0.32,
+      "baseline_random_f1": 0.012
+    },
+    "test_pooled": {
+      "precision": 0.47058823529411764,
+      "recall": 0.34782608695652173,
+      "f1": 0.39999999999999997,
+      "true_positive": 8,
+      "false_positive": 9,
+      "false_negative": 15,
+      "n": 1342,
+      "false_positive_rate": 0.006823351023502654,
+      "average_precision": 0.281011590152668,
+      "precision_at_k": 0.16,
+      "baseline_random_f1": 0.012
+    }
+  },
+  "baselines": {
+    "injected_anomaly_rate": 0.011565251675647259
+  },
+  "notes": "Unsupervised Isolation Forest; ground-truth labels are used only to score it, never to fit it. The operating point was chosen on the validation window. Known limitation: the injected 'unusual_merchant' pattern is detected poorly because a single novel merchant at a mid-range amount is genuinely indistinguishable from ordinary spending on transaction features alone -- that signal lives in sequence context. Detection is kept deliberately conservative: falsely accusing a customer of irregular spending is worse than missing a pattern."
+}

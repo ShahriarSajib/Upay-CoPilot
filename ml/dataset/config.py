@@ -22,6 +22,121 @@ SPLIT_DIRS = {
     "test": "data/test",
 }
 
+# ---------------------------------------------------------------------------
+# Development profile
+#
+# The full population (500 users, ~191k transactions) is right for offline
+# evaluation but far too heavy for iterating on an API and a UI. The dev
+# profile keeps every generator, invariant and validation rule identical and
+# changes only two knobs: population size and transaction volume.
+#
+# Volume is controlled by a scale factor on the per-persona monthly
+# transaction counts, because transactions dominate the row budget
+# (~82% of all rows). At scale 0.28 the 50-user dev set lands near 7.5k
+# transaction rows and ~9.5k rows in total, inside the 10k budget with headroom,
+# while retaining ~16 transactions per user per month -- still dense enough for
+# day-level forecasting and cash-out pattern detection.
+# ---------------------------------------------------------------------------
+
+DEV_NUM_USERS = 50
+DEV_MONTHS = 9
+DEV_TRANSACTION_VOLUME = 0.28
+DEV_OUTPUT_DIR = "data/dev"
+# Nested under the dev dir so the leakage checker, which expects
+# <root>/{train,validation,test}/features, works unchanged on the dev splits.
+DEV_SPLIT_ROOT = "data/dev/splits"
+DEV_SPLIT_DIRS = {
+    "train": "data/dev/splits/train",
+    "validation": "data/dev/splits/validation",
+    "test": "data/dev/splits/test",
+}
+
+# Persona assignment is balanced rather than sampled by probability in the dev
+# profile, so all eight behaviours are guaranteed to be present in a 50-user
+# set. With proportional sampling a persona at 6% would appear ~3 times, which
+# is too thin to debug against.
+DEV_PERSONAS_BALANCED = [
+    "stable_saver",
+    "stable_saver",
+    "stable_saver",
+    "stable_saver",
+    "end_month_shortage",
+    "end_month_shortage",
+    "end_month_shortage",
+    "irregular_income",
+    "irregular_income",
+    "high_cash_dependency",
+    "high_cash_dependency",
+    "goal_oriented",
+    "goal_oriented",
+    "goal_oriented",
+    "seasonal_spender",
+    "seasonal_spender",
+    "sudden_anomaly",
+    "sudden_anomaly",
+    "financial_pressure",
+    "financial_pressure",
+]
+
+# Synthetic identities. These are fabricated names for a fabricated population;
+# no real customer data is involved anywhere in this project.
+DEV_USER_NAMES: list[tuple[str, str]] = [
+    ("Ayesha Rahman", "আয়েশা রহমান"),
+    ("Rakib Hasan", "রাকিব হাসান"),
+    ("Nusrat Jahan", "নুসরাত জাহান"),
+    ("Tanvir Ahmed", "তানভীর আহমেদ"),
+    ("Farhana Akter", "ফারহানা আক্তার"),
+    ("Imran Hossain", "ইমরান হোসাইন"),
+    ("Sadia Islam", "সাদিয়া ইসলাম"),
+    ("Mehedi Hasan", "মেহেদী হাসান"),
+    ("Tahmina Akter", "তাহমিনা আক্তার"),
+    ("Shafiq Alam", "শফিক আলম"),
+    ("Nabila Chowdhury", "নাবিলা চৌধুরী"),
+    ("Jubayer Rahman", "জুবায়ের রহমান"),
+    ("Sumaiya Khatun", "সুমাইয়া খাতুন"),
+    ("Arif Chowdhury", "আরিফ চৌধুরী"),
+    ("Maliha Sultana", "মালিহা সুলতানা"),
+    ("Rifat Khan", "রিফাত খান"),
+    ("Sabrina Yeasmin", "সাবরিনা ইয়াসমিন"),
+    ("Mizanur Rahman", "মিজানুর রহমান"),
+    ("Rukhsana Begum", "রুক্সানা বেগম"),
+    ("Sohel Mia", "সোহেল মিয়া"),
+    ("Afsana Mim", "আফসানা মিম"),
+    ("Kamrul Islam", "কামরুল ইসলাম"),
+    ("Sharmeen Akter", "শারমিন আক্তার"),
+    ("Rasel Uddin", "রাশেল উদ্দিন"),
+    ("Nusrat Jahan Mim", "নুসরাত জাহান মিম"),
+    ("Anwar Hossain", "আনোয়ার হোসাইন"),
+    ("Zarin Tasnim", "জারিন তাসনিম"),
+    ("Habibur Rahman", "হাবিবুর রহমান"),
+    ("Shoma Khatun", "শোমা খাতুন"),
+    ("Alamgir Kabir", "আলমগীর কবির"),
+    ("Runa Talukder", "রুনা তালুকদার"),
+    ("Nazmul Hassan", "নাজমুল হাসান"),
+    ("Shamima Akter", "শামিমা আক্তার"),
+    ("Mizanur Rahman Emon", "মিজানুর রহমান ইমন"),
+    ("Farhana Akter Mim", "ফারহানা আক্তার মিম"),
+    ("Sabbir Ahmed", "সাব্বির আহমেদ"),
+    ("Rashmi Das", "রাশমী দাস"),
+    ("Aminul Haque", "আমিনুল হক"),
+    ("Trisha Chakma", "তৃষা চক্রমা"),
+    ("Junaid Alam", "জুনাইদ আলম"),
+    ("Momena Khatun", "মোমেনা খাতুন"),
+    ("Sajidur Rahman", "সাজিদুর রহমান"),
+    ("Priya Barua", "প্রিয়া বড়ুয়া"),
+    ("Amitava Das", "অমিতাভ দাস"),
+    ("Rukhsana Ara", "রুক্সানা আরা"),
+    ("Shafqat Hossain", "শফকাত হোসাইন"),
+    ("Nayantara Sen", "নায়ন্তরা সেন"),
+    ("Arif Chowdhury Mim", "আরিফ চৌধুরী মিম"),
+    ("Sunita Akter", "সুনিতা আক্তার"),
+    ("Nazmul Abedin", "নাজমুল আবেদীন"),
+    ("Mithila Rahman", "মিথিলা রহমান"),
+    ("Habib Alam", "হাবিব আলম"),
+    ("Raihan Chowdhury", "রায়হান চৌধুরী"),
+    ("Shirin Sultana", "শিরিন সুলতানা"),
+]
+
 PERSONAS = [
     "stable_saver",
     "end_month_shortage",

@@ -1,0 +1,63 @@
+{
+  "name": "forecast_income_level",
+  "task": "predict next-period monthly income/spend level",
+  "trained_at": "2026-10-04T00:44:10.506377+00:00",
+  "train_window": "2026-01..2026-05",
+  "validation_window": "2026-06..2026-07",
+  "features": [
+    "n_history",
+    "mean_1",
+    "mean_2",
+    "mean_3",
+    "std_3",
+    "cv",
+    "min_3",
+    "max_3",
+    "range_ratio",
+    "last_ratio",
+    "lag1",
+    "lag2",
+    "trend",
+    "ending_balance",
+    "balance_to_spend",
+    "expense_ratio",
+    "income_to_spend_ratio",
+    "recurring_share",
+    "late_share",
+    "cash_share",
+    "goal_contribution",
+    "months_active",
+    "income_mean_3",
+    "income_cv_3",
+    "income_min_3",
+    "income_max_3",
+    "income_lag1",
+    "income_lag2",
+    "income_mean_all",
+    "spend_mean_all"
+  ],
+  "metrics": {
+    "mae": 5200.800238360552,
+    "rmse": 13561.747162223588,
+    "mape_active_days": 7.142327249215724,
+    "bias": -17.497420755185885,
+    "n": 100
+  },
+  "baselines": {
+    "structural_trailing": {
+      "mae": 5462.1943190476195,
+      "rmse": 14581.782629696294,
+      "mape_active_days": 6.761571472238059,
+      "bias": -828.0755666666679,
+      "n": 100
+    },
+    "gbm_only": {
+      "mae": 18437.385110613293,
+      "rmse": 38515.53901348684,
+      "mape_active_days": 31.814805075570284,
+      "bias": -1026.0142984404506,
+      "n": 100
+    }
+  },
+  "notes": "Volatility-gated stack. A plain LightGBM regressor LOSES to the customer's own trailing mean on monthly spend, because monthly spend is drawn proportional to that month's income, leaving little exploitable structure. The gate learns from the customer's own coefficient of variation how far to trust each estimator: it tracks the trailing mean for stable customers and the GBM for volatile ones. Gate thresholds were fitted on the validation window only."
+}
