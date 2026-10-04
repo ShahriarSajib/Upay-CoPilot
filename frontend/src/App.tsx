@@ -7,6 +7,8 @@ import { useCopilot } from "./data/store";
 import { t as copy } from "./i18n";
 
 import Dashboard from "./pages/Dashboard";
+import Auth from "./pages/Auth";
+import { useAuth } from "./data/auth";
 
 /**
  * Only the dashboard ships in the main chunk. Every other page pulls its own
@@ -38,6 +40,9 @@ function Page({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
+  const { token, loading } = useAuth();
+  if (loading) return <Loading />;
+  if (!token) return <Auth />;
   return (
     <Routes>
       <Route element={<Layout />}>

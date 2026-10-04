@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { personaLabel } from "@/data/context";
 import { useCopilot } from "@/data/store";
+import { useAuth } from "@/data/auth";
 import { useBundle } from "@/hooks/useBundle";
 import { fullDate, taka, toBanglaDigits } from "@/lib/format";
 import { t as copy } from "@/i18n";
@@ -88,6 +89,7 @@ const BAND_COLOR: Record<string, string> = {
 
 export default function Layout() {
   const { lang, setLang, banglaNumerals, setBanglaNumerals, users, userId, setUserId, ctx, status, error, evidenceStack, popEvidence, clearEvidence } = useCopilot();
+  const { logout } = useAuth();
   const bundle = useBundle();
   const [navOpen, setNavOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
@@ -270,6 +272,9 @@ export default function Layout() {
                 </>
               )}
             </NavLink>
+            <button type="button" onClick={() => void logout()} className="hidden rounded-lg border border-ink-200 px-3 py-2 text-[12px] font-bold text-ink-600 hover:border-brand-300 hover:text-brand-700 sm:block">
+              {lang === "bn" ? "লগআউট" : "Log out"}
+            </button>
           </div>
         </div>
         <div className="border-t border-ink-100 bg-ink-50/70">
@@ -285,7 +290,7 @@ export default function Layout() {
                 {copy("liquidBalance", lang)}: {taka(ctx.liquidBalance, { lang: banglaNumerals ? "bn" : lang })}
               </span>
             ) : null}
-            <span className="ml-auto text-ink-400">{copy("demoData", lang)}</span>
+            <span className="ml-auto text-ink-400">{lang === "bn" ? "নিরাপদ API ডেটা" : "Secure API data"}</span>
           </div>
         </div>
       </header>

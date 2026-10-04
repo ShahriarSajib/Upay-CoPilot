@@ -11,8 +11,10 @@ import type {
   User,
   Wallet,
 } from "@/types";
+import { apiBase } from "./auth";
 
-const SNAPSHOT_URL = `${import.meta.env.BASE_URL}data/snapshot.json`;
+const SNAPSHOT_URL = `${apiBase()}/api/dataset`;
+const TOKEN_KEY = "upay.copilot.token";
 
 export interface Dataset {
   meta: Snapshot["meta"];
@@ -30,8 +32,9 @@ export interface Dataset {
 }
 
 /** Decode the columnar encoding written by scripts/export_frontend_snapshot.py. */
-function decode<T>(table: { columns: string[]; rows: unknown[][] } | undefined): T[] {
+function decode<T>(table: { columns: string[]; rows: unknown[][] } | T[] | undefined): T[] {
   if (!table) return [];
+  if (Array.isArray(table)) return table;
   const { columns, rows } = table;
   return rows.map((row) => {
     const obj: Record<string, unknown> = {};
@@ -46,10 +49,14 @@ let cache: Dataset | null = null;
 
 export async function loadDataset(signal?: AbortSignal): Promise<Dataset> {
   if (cache) return cache;
-  const res = await fetch(SNAPSHOT_URL, signal ? { signal } : undefined);
+  const token = localStorage.getItem(TOKEN_KEY);
+  const res = await fetch(SNAPSHOT_URL, {
+    ...(signal ? { signal } : {}),
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!res.ok) {
     throw new Error(
-      `Could not load data/snapshot.json (${res.status}). Run: python scripts/export_frontend_snapshot.py`,
+      `Could not load the authenticated dataset (${res.status}).`,
     );
   }
   const json = (await res.json()) as Snapshot;
