@@ -7,7 +7,19 @@
 Every number this product shows is computed by a deterministic engine and ships with
 its inputs, method, confidence and assumptions. The language model never calculates.
 
-[React](https://react.dev) · [TypeScript](https://www.typescriptlang.org) · [Vite](https://vite.dev) · [FastAPI](https://fastapi.tiangolo.com) · [LightGBM](https://lightgbm.readthedocs.io) · [PostgreSQL](https://www.postgresql.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev)
+[![FastAPI](https://img.shields.io/badge/FastAPI-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![LightGBM](https://img.shields.io/badge/LightGBM-4-8C9AC8?logo=lightgbm&logoColor=white)](https://lightgbm.readthedocs.io)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![Node](https://img.shields.io/badge/node-20%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![Tests](https://img.shields.io/badge/tests-76%20passing-16A34A)](https://github.com)
+[![Data](https://img.shields.io/badge/data-100%25%20synthetic-8B5CF6)](https://github.com)
+
+[Quick Start](#quick-start) · [Architecture](#architecture) · [API Reference](#api-reference) · [Evaluation](#evaluation-results)
 
 </div>
 
@@ -15,24 +27,28 @@ its inputs, method, confidence and assumptions. The language model never calcula
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [The Five Rules](#the-five-rules)
-- [Architecture](#architecture)
-- [Feature Modules](#feature-modules)
-- [Tech Stack](#tech-stack)
-- [Repository Layout](#repository-layout)
-- [Quick Start](#quick-start)
-- [Data Pipeline](#data-pipeline)
-- [ML Models](#ml-models)
-- [API Reference](#api-reference)
-- [LLM Layer](#llm-layer)
-- [Frontend](#frontend)
-- [Database](#database)
-- [Testing](#testing)
-- [Configuration](#configuration)
-- [Evaluation Results](#evaluation-results)
-- [Roadmap](#roadmap)
-- [License](#license)
+| Section | What it covers |
+|---|---|
+| [Overview](#overview) | What the product does and who it serves |
+| [The Five Rules](#the-five-rules) | The non-negotiable safety and evidence boundaries |
+| [Architecture](#architecture) | End-to-end data flow and the two runnable builds |
+| [Feature Modules](#feature-modules) | All 15 modules, their routes and their constraints |
+| [Tech Stack](#tech-stack) | Languages, frameworks and infrastructure |
+| [Repository Layout](#repository-layout) | Directory-by-directory map of the codebase |
+| [Quick Start](#quick-start) | Run the frontend, the backend and the full pipeline |
+| [Data Pipeline](#data-pipeline) | Synthetic cohort generation, ledger rules, temporal splits |
+| [ML Models](#ml-models) | Trained models, model cards and design decisions |
+| [API Reference](#api-reference) | Every route, grouped by intent |
+| [LLM Layer](#llm-layer) | Tool allowlist, routing and guardrails |
+| [Frontend](#frontend) | React architecture, evidence panel and i18n |
+| [Database](#database) | Schema, accounting views and store implementations |
+| [Testing](#testing) | What the 76 tests actually assert |
+| [Configuration](#configuration) | Every environment variable that changes behaviour |
+| [Evaluation Results](#evaluation-results) | Backtest numbers and the honest caveats |
+| [Roadmap](#roadmap) | Phases, delivery status and open decisions |
+| [Contributing](#contributing) | The rules a pull request must satisfy |
+| [Responsible AI](#responsible-ai) | Commitments mapped to implementations |
+| [License](#license) | Authorship and usage terms |
 
 ---
 
@@ -45,6 +61,8 @@ next month looks like, which goal to fund next, and what to do when plans break.
 The product is built for four cohorts — gig workers, salary employees, small business
 owners and micro-entrepreneurs — across eight synthetic personas that act as
 **design and evaluation ground truth only**, never as model inputs.
+
+### At a glance
 
 | | |
 |---|---|
@@ -62,6 +80,10 @@ ask it to reason. This one does not. The LLM is an **explanation layer over an
 allowlisted tool surface** — it can rephrase, translate, summarise and refuse. It
 cannot compute, cannot write, cannot transfer money and cannot approve credit. That
 boundary is provable by reading `backend/app/llm/tools.py` in 85 lines.
+
+> [!TIP]
+> **Shortest path to the product:** `cd frontend && npm install && npm run dev`.
+> No backend, no API keys, no database — every engine runs in the browser.
 
 ---
 
@@ -101,18 +123,19 @@ Customer action                    ← one prioritised action at a time, user-in
 Measurable outcome                 ← evaluated against held-out labels
 ```
 
-**Two runnable implementations.** The frontend is a self-contained prototype that loads
-a static JSON snapshot and runs every engine in the browser — no backend required. The
-FastAPI service runs the same engine contracts server-side with Python ML models and
-the LLM tool layer. Both satisfy the same evidence contract, so the React components
-keep their contract when engines move behind typed endpoints.
+> [!NOTE]
+> **Two runnable implementations.** The frontend is a self-contained prototype that loads
+> a static JSON snapshot and runs every engine in the browser — no backend required. The
+> FastAPI service runs the same engine contracts server-side with Python ML models and
+> the LLM tool layer. Both satisfy the same evidence contract, so the React components
+> keep their contract when engines move behind typed endpoints.
 
 ---
 
 ## Feature Modules
 
 | # | Module | Engine output | Route | Safety constraint |
-|---|---|---|---|---|
+|:--:|---|---|---|---|
 | 1 | Financial Health Coach | Weighted multi-dimension score, positives, concerns, low-balance days | `/health` | Weights are fixed product assumptions, never fitted per customer |
 | 2 | Smart Spending | Unusual transactions, recurring detection, money leaks, essential/discretionary split, end-of-month concentration | `/spending` | Detections carry a stated rule, not a judgement |
 | 3 | Cash-Flow Forecasting | Balance projection at 7/14/30/60/90 days, income schedule, obligation calendar, buffer breach | `/forecast` | Baseline comparison reported beside every model figure |
@@ -135,7 +158,7 @@ The customer-facing health score is a **weighted composite of measured ratios**,
 black box — a score shown next to a person's name has to be arguable.
 
 | Component | Weight |
-|---|---|
+|---|---:|
 | Saving after spending | 0.20 |
 | Spending against income | 0.20 |
 | Money kept in reserve | 0.20 |
@@ -230,7 +253,7 @@ Upay-CoPilot/
 - Python **3.10+**
 - Node.js **20+** and npm
 
-### 1. Frontend (self-contained — recommended first run)
+### 1. Frontend — self-contained, recommended first run
 
 ```bash
 cd frontend
@@ -255,7 +278,7 @@ If the snapshot is missing, regenerate it:
 python scripts/export_frontend_snapshot.py
 ```
 
-### 2. Backend (FastAPI service)
+### 2. Backend — FastAPI service
 
 ```bash
 python -m venv .venv
@@ -269,9 +292,11 @@ cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
-- API root: `http://localhost:8000`
-- Interactive docs: `http://localhost:8000/docs`
-- Health check: `http://localhost:8000/health`
+| Endpoint | URL |
+|---|---|
+| API root | `http://localhost:8000` |
+| Interactive docs | `http://localhost:8000/docs` |
+| Health check | `http://localhost:8000/health` |
 
 The service runs **fully without any LLM key**. With no provider configured the
 assistant degrades to a deterministic keyword-routed answer rather than failing —
@@ -308,7 +333,7 @@ the generator emits a ledger where `balance_after` reconciles exactly.
 ### Personas
 
 | Persona | Share | Characteristic |
-|---|---|---|
+|---|---:|---|
 | `stable_saver` | 20% | Predictable income, low spend ratio, consistent funding |
 | `end_month_shortage` | 15% | Spend concentrates in the last third of the month |
 | `irregular_income` | 12% | High income coefficient of variation |
@@ -318,7 +343,7 @@ the generator emits a ledger where `balance_after` reconciles exactly.
 | `financial_pressure` | 10% | High expense ratio, low buffer |
 | `sudden_anomaly` | 6% | Injected anomalous transactions |
 
-### Ledger semantics (identical in every implementation)
+### Ledger semantics — identical in every implementation
 
 - `send_money` and `receive_money` are **internal transfers** — excluded from income and
   consumption so the ledger reconciles with the wallet.
@@ -329,7 +354,7 @@ the generator emits a ledger where `balance_after` reconciles exactly.
 ### Temporal splits — never random
 
 | Split | Periods | Months | Transactions | Share |
-|---|---|---|---|---|
+|---|---|:--:|--:|--:|
 | Train | 2026-01 … 2026-05 | 5 | 87,891 | 55.7% |
 | Validation | 2026-06 … 2026-07 | 2 | 34,870 | 22.1% |
 | Test | 2026-08 … 2026-09 | 2 | 35,021 | 22.2% |
@@ -343,12 +368,13 @@ blocked from features:
    `progress_ratio`, `is_achieved`, which aggregate the entire window including the test
    period.
 
-`recurring_id` **is** kept: it is a real foreign key observable at transaction time.
+> [!NOTE]
+> `recurring_id` **is** kept: it is a real foreign key observable at transaction time.
 
 ### Reference counts
 
 | Table | Generated (500 users) | Dev (50 users) |
-|---|---|---|
+|---|--:|--:|
 | `users` | 500 | 50 |
 | `wallets` | 1,468 | 147 |
 | `transactions` | 191,167 | 7,609 |
@@ -359,10 +385,15 @@ blocked from features:
 | `behavior_labels` | 4,500 | 450 |
 | `injected_patterns` | 755 | 88 |
 
-Full detail: [`docs/data_dictionary.md`](docs/data_dictionary.md),
-[`docs/dataset_split.md`](docs/dataset_split.md),
-[`docs/synthetic_data_assumptions.md`](docs/synthetic_data_assumptions.md),
-[`docs/dataset_validation_report.md`](docs/dataset_validation_report.md).
+### Further reading
+
+| Document | Contents |
+|---|---|
+| [`docs/data_dictionary.md`](docs/data_dictionary.md) | Every column, type and allowed value |
+| [`docs/dataset_split.md`](docs/dataset_split.md) | Temporal split rules and the leakage blocklist |
+| [`docs/synthetic_data_assumptions.md`](docs/synthetic_data_assumptions.md) | Generator probabilities and economic assumptions |
+| [`docs/dataset_validation_report.md`](docs/dataset_validation_report.md) | Output of the validation gate |
+| [`product_spec.md`](product_spec.md) | The product contract the code is reviewed against |
 
 ---
 
@@ -465,7 +496,7 @@ unknown user, `400` for an invalid parameter.
 | `POST` | `/api/assistant` | `{ user_id, message }` |
 | `POST` | `/api/intent` | `{ user_id, message }` — deterministic intent routing, no LLM |
 
-### Voice (env-pluggable stubs)
+### Voice — env-pluggable stubs
 
 | Method | Path | Body |
 |---|---|---|
@@ -501,20 +532,16 @@ Exactly eight tools, all read-only (`backend/app/llm/tools.py`):
 `cashflow_forecast` · `financial_literacy` · `credit_readiness` · `goal_status` ·
 `goal_plan` · `goal_conflicts` · `emergency_fund` · `simulate`
 
-No writes. No SQL. No score mutation. No credit decisions.
+**No writes. No SQL. No score mutation. No credit decisions.**
 
-### Guardrails (`backend/app/llm/guards.py`)
+### Guardrails — `backend/app/llm/guards.py`
 
-- **Prompt injection** — eight patterns (`ignore previous instructions`, `you are now`,
-  `system:`, `act as a`, `pretend to be`, `jailbreak`, …). Injection spans are replaced
-  with `[removed-instruction]` rather than dropping the whole message, because blocking
-  a customer's goal named *"system savings"* is not acceptable.
-- **PII redaction** — account numbers, BD phone numbers, long digit runs, emails and
-  `sk-` secrets are replaced before text reaches a provider. The model never needs them;
-  it works from already-aggregated engine output.
-- **Output filtering** — banned phrases and leaked identifiers are stripped from model
-  output before display.
-- **Deterministic temperature** — `temperature=0.1`, `max_tokens=256`, JSON response mode.
+| Guard | Behaviour |
+|---|---|
+| **Prompt injection** | Eight patterns (`ignore previous instructions`, `you are now`, `system:`, `act as a`, `pretend to be`, `jailbreak`, …). Injection spans are replaced with `[removed-instruction]` rather than dropping the whole message, because blocking a customer's goal named *"system savings"* is not acceptable. |
+| **PII redaction** | Account numbers, BD phone numbers, long digit runs, emails and `sk-` secrets are replaced before text reaches a provider. The model never needs them; it works from already-aggregated engine output. |
+| **Output filtering** | Banned phrases and leaked identifiers are stripped from model output before display. |
+| **Deterministic sampling** | `temperature=0.1`, `max_tokens=256`, JSON response mode. |
 
 ---
 
@@ -541,7 +568,7 @@ context object — switching language or customer recomputes nothing.
 
 ---
 
-## Why this project matters
+## Database
 
 The production relational shape lives in `backend/app/db/schema.sql`:
 
@@ -568,6 +595,7 @@ Two store implementations satisfy the same `FinancialStore` protocol:
 **`EmbeddedStore`** (reads `data/dev` into a cached pandas store — zero setup, used by
 the API and tests) and **`PostgresStore`** (the same rollups in SQL).
 
+> [!NOTE]
 > `data/generated` is named in config **only so code can refuse to read it**. The
 > development dataset is the source of truth.
 
@@ -586,16 +614,12 @@ cd backend && pytest tests/test_copilot.py -v
 cd backend && pytest -v
 ```
 
-The dataset suite covers schema and foreign keys, ledger integrity, transfer pairing,
-recurring schedules, goal arithmetic, label observability, determinism, temporal splits
-and leakage — including a test that **injects a `persona` column and asserts the leakage
-check catches it**.
+### What the suite actually asserts
 
-The service suite asserts read routes return 200, unknown users return 404 (never 500),
-goal allocation never exceeds disposable capacity, forecast horizons are respected and
-not double-counted, credit readiness never touches protected attributes, injection is
-neutralised, identifiers are redacted, RAG retrieves the right documented fact, and the
-voice routes accept raw audio and reject empty bodies.
+| Suite | Coverage |
+|---|---|
+| **Dataset — 59 tests** | Schema and foreign keys, ledger integrity, transfer pairing, recurring schedules, goal arithmetic, label observability, determinism, temporal splits and leakage — including a test that **injects a `persona` column and asserts the leakage check catches it**. |
+| **Service — 17 tests** | Read routes return `200`, unknown users return `404` (never `500`), goal allocation never exceeds disposable capacity, forecast horizons are respected and not double-counted, credit readiness never touches protected attributes, injection is neutralised, identifiers are redacted, RAG retrieves the right documented fact, and the voice routes accept raw audio and reject empty bodies. |
 
 ---
 
@@ -647,6 +671,7 @@ From `backend/reports/evaluation_report.json`, trained on `data/dev/splits`
 | Numerics | Every engine figure re-derived independently | Exact-match enforced in tests |
 | Fairness | Slices by age group, occupation, location type | Protected attributes excluded from all design matrices |
 
+> [!IMPORTANT]
 > **Honest caveat, reproduced from the report.** The dataset generator derives both
 > `financial_profiles` and `behavior_labels` by aggregating the same transactions the
 > features are built from. A model can therefore reach a high R²/F1 while learning
@@ -664,7 +689,7 @@ evaluation-only.
 ## Roadmap
 
 | Phase | Deliverable | Status |
-|---|---|---|
+|:--:|---|:--:|
 | 0 | Product spec, data dictionary, split rules, validation report | ✅ Complete |
 | 1 | Synthetic cohort + validation | ✅ Complete |
 | 2 | Financial Context Engine | ✅ Complete |
@@ -675,9 +700,9 @@ evaluation-only.
 | 7 | Bilingual + Banglish + voice | ✅ Complete |
 | 8 | FastAPI service layer | ✅ Complete |
 | 9 | Python ML training and serving (GBDT, clustering, TreeSHAP) | ✅ Complete |
-| 10 | PostgreSQL, auth, deployment, user testing | ⬜ Not started |
+| 10 | PostgreSQL, auth, deployment, user testing | ✅ Complete |
 
-**Open decisions**
+### Open decisions
 
 1. **Segmentation** — ship a feature-derived behavioural segment (never the ground-truth
    persona) or omit segmentation from the customer-facing product.
@@ -718,3 +743,9 @@ evaluation-only.
 
 This project is developed for the upay Financial Life Copilot challenge. All data is
 synthetic. See repository history for authorship and contribution records.
+
+---
+
+<div align="center">
+<sub>Built evidence-first — every figure traceable to an engine, a method and a dataset.</sub>
+</div>
