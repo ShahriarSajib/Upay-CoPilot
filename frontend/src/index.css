@@ -1,0 +1,195 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * upay Financial Life Copilot — design tokens
+ * Single light theme, tuned for dense financial data readability.
+ * ------------------------------------------------------------------ */
+@theme {
+  --font-sans: "Inter var", "Inter", ui-sans-serif, system-ui, "Segoe UI", Roboto,
+    "Noto Sans Bengali", "Hind Siliguri", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono", monospace;
+
+  /* Brand — upay crimson */
+  --color-brand-50: #fff1f3;
+  --color-brand-100: #ffe0e5;
+  --color-brand-200: #ffc5cf;
+  --color-brand-300: #ff9dab;
+  --color-brand-400: #f96d81;
+  --color-brand-500: #ec425c;
+  --color-brand-600: #d71f42;
+  --color-brand-700: #b81334;
+  --color-brand-800: #9c1230;
+  --color-brand-900: #84122c;
+  --color-brand-950: #4c0516;
+
+  /* Ink — warm neutral */
+  --color-ink-50: #f8f8f7;
+  --color-ink-100: #f1f0ee;
+  --color-ink-200: #e3e1dd;
+  --color-ink-300: #cbc7c1;
+  --color-ink-400: #a09a92;
+  --color-ink-500: #7b746c;
+  --color-ink-600: #5d574f;
+  --color-ink-700: #454039;
+  --color-ink-800: #2d2a25;
+  --color-ink-900: #1a1815;
+  --color-ink-950: #0e0d0b;
+
+  /* Accents */
+  --color-mint-50: #ecfdf5;
+  --color-mint-100: #d1fae5;
+  --color-mint-400: #34d399;
+  --color-mint-500: #10b981;
+  --color-mint-600: #059669;
+  --color-mint-700: #047857;
+
+  --color-amber-ink: #b45309;
+
+  /* Categorical data-viz ramp (brand → teal → violet → amber) */
+  --color-viz-1: #d71f42;
+  --color-viz-2: #0f766e;
+  --color-viz-3: #7c3aed;
+  --color-viz-4: #b45309;
+  --color-viz-5: #0369a1;
+  --color-viz-6: #be185d;
+  --color-viz-7: #4d7c0f;
+  --color-viz-8: #0891b2;
+
+  --radius-card: 16px;
+
+  --shadow-soft: 0 1px 2px rgb(20 18 15 / 0.04), 0 8px 24px -12px rgb(20 18 15 / 0.16);
+  --shadow-pop: 0 2px 4px rgb(20 18 15 / 0.05), 0 24px 48px -20px rgb(20 18 15 / 0.28);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-ink-200);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-ink-50);
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "tnum" 0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Bengali glyphs need a slightly larger optical size */
+  :lang(bn),
+  .bn {
+    font-family: "Noto Sans Bengali", "Hind Siliguri", var(--font-sans);
+    line-height: 1.75;
+  }
+
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-ink-300);
+    border-radius: 999px;
+    border: 3px solid var(--color-ink-50);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-ink-400);
+  }
+}
+
+@layer components {
+  .card {
+    background: white;
+    border: 1px solid var(--color-ink-200);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Faint hatch used to mark "ground truth / evaluation only" regions */
+  .gt-stripes {
+    background-image: repeating-linear-gradient(
+      135deg,
+      rgb(180 83 9 / 0.07) 0px,
+      rgb(180 83 9 / 0.07) 6px,
+      transparent 6px,
+      transparent 12px
+    );
+  }
+
+  .scroll-thin {
+    scrollbar-width: thin;
+  }
+}
+
+/* Recharts polish */
+.recharts-surface:focus {
+  outline: none;
+}
+.recharts-default-tooltip {
+  border-radius: 12px !important;
+  border: 1px solid var(--color-ink-200) !important;
+  box-shadow: var(--shadow-pop) !important;
+  font-size: 12px;
+}
+.recharts-cartesian-axis-tick text {
+  fill: var(--color-ink-500);
+  font-size: 11px;
+}
+
+@keyframes upay-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-in {
+  animation: upay-fade-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes upay-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(215 31 66 / 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgb(215 31 66 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(215 31 66 / 0);
+  }
+}
+.animate-mic {
+  animation: upay-pulse-ring 1.6s cubic-bezier(0.66, 0, 0, 1) infinite;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
