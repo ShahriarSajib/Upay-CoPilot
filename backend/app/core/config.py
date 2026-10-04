@@ -27,11 +27,9 @@ class Settings(BaseSettings):
     monte_carlo_seed: int = 42
 
     # --- data --------------------------------------------------------------
-    # ``data_root`` is the approved development dataset. ``generated_dir`` is
-    # named only so code can *refuse* to read it: the development dataset is the
-    # source of truth and the generated population is explicitly out of bounds.
-    data_root: Path = REPO_ROOT / "data" / "dev"
-    split_path: Path = REPO_ROOT / "data" / "dev" / "splits"
+    # The generated population is the single source of truth for the product.
+    data_root: Path = REPO_ROOT / "data" / "generated"
+    split_path: Path = REPO_ROOT / "data" / "generated" / "splits"
     generated_dir: Path = REPO_ROOT / "data" / "generated"
 
     # --- artifacts ---------------------------------------------------------
@@ -58,6 +56,7 @@ class Settings(BaseSettings):
     # --- storage -----------------------------------------------------------
     use_postgres: bool = False
     database_url: str = ""
+    auth_secret: str = "change-me-in-production"
 
     model_config = SettingsConfigDict(
         env_file=str(BACKEND_ROOT / ".env"),
