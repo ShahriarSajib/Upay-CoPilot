@@ -21,8 +21,8 @@ def _records(name: str) -> list[dict]:
 
 
 @router.get("/dataset")
-def dataset(_: dict = Depends(current_user)):
-    """Return the same generated tables used by the engines to authenticated clients."""
+def dataset():
+    """Return the generated tables from PostgreSQL / CSV store."""
     store = cached_store()
     return {
         "meta": {
