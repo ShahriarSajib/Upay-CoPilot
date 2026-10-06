@@ -35,6 +35,10 @@ node_modules/
 dist/
 build/
 
+# Compiled TypeScript output. Vite resolves .js before .tsx, so a stray emitted
+# file next to a .tsx source shadows the real module in dev and build.
+frontend/src/**/*.js
+
 # Logs
 *.log
 

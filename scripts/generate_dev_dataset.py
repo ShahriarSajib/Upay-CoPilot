@@ -21,9 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import pandas as pd
-
-from ml.dataset.config import (
+import pandas as pd  # noqa: E402
+from ml.dataset.config import (  # noqa: E402
     DEV_MONTHS,
     DEV_NUM_USERS,
     DEV_OUTPUT_DIR,
@@ -32,9 +31,9 @@ from ml.dataset.config import (
     DEV_TRANSACTION_VOLUME,
     SEED,
 )
-from ml.dataset.leakage import render, run_leakage_check
-from ml.dataset.pipeline import TABLE_ORDER, generate_all
-from ml.dataset.validation import validate
+from ml.dataset.leakage import render, run_leakage_check  # noqa: E402
+from ml.dataset.pipeline import TABLE_ORDER, generate_all  # noqa: E402
+from ml.dataset.validation import validate  # noqa: E402
 
 # Hard ceiling for the development dataset, as agreed for iteration speed.
 ROW_BUDGET = 10_000

@@ -105,6 +105,9 @@ def add_period(frame: pd.DataFrame) -> pd.DataFrame:
 def daily_flow(transactions: pd.DataFrame) -> pd.DataFrame:
     """Per user-day income and spending on the shared accounting basis."""
     frame = add_period(transactions)
+    # The generated CSVs carry only ``timestamp``, so the calendar day is derived
+    # here rather than assumed to be a stored column.
+    frame["date"] = frame["timestamp"].dt.normalize()
     frame = frame[consumption_mask(frame)]
     frame = frame.assign(
         income=np.where(frame["direction"] == "inflow", frame["amount"], 0.0),

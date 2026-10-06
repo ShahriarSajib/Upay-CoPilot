@@ -134,13 +134,13 @@ def write_dataset(tables: dict[str, pd.DataFrame], output_dir: str = OUTPUT_DIR)
 def write_temporal_splits(
     tables: dict[str, pd.DataFrame], directories: dict[str, str] = SPLIT_DIRS
 ) -> dict[str, pd.DataFrame]:
-    """Materialise time-based train/validation/test splits."""
-    time_scoped = {
-        name: frame
-        for name, frame in tables.items()
-        if name not in ("users", "wallets")
-    }
-    splits = split_frames(time_scoped)
+    """Materialise time-based train/validation/test splits.
+
+    Dimension tables (``users``, ``wallets``) have no timestamp, so
+    :func:`split_frames` copies them into every split and ``write_splits``
+    strips their ground-truth columns on the way out.
+    """
+    splits = split_frames(tables)
     write_splits(splits, directories)
     return splits
 

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 const TOKEN_KEY = "upay.copilot.token";
 
 interface AuthState {
@@ -14,9 +14,9 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-async function request(path: string, body?: unknown, token?: string) {
+async function request(path: string, body?: unknown, token?: string, method?: "GET" | "POST") {
   const response = await fetch(`${API_BASE}${path}`, {
-    method: body ? "POST" : "GET",
+    method: method ?? (body ? "POST" : "GET"),
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -63,7 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authenticate(await request("/auth/signup", { email, password, user_id: selectedUserId || null }));
   }, [authenticate]);
   const logout = useCallback(async () => {
-    if (token) await request("/auth/logout", undefined, token).catch(() => undefined);
+    // The route is a POST with no body, so the verb has to be explicit.
+    if (token) await request("/auth/logout", undefined, token, "POST").catch(() => undefined);
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setUserId(null);

@@ -4,6 +4,10 @@ Return only pre-computed, evidenced values. No generation. These endpoints
 are what the LLM tool layer must call -- never recompute the numbers.
 """
 
+from __future__ import annotations
+
+import inspect
+
 from fastapi import APIRouter, HTTPException
 
 from app.engines.credit import credit_readiness
@@ -82,6 +86,16 @@ def emergency(user_id: str):
 
 @router.post("/simulate")
 def simulate_scenario(user_id: str, body: dict):
+    # A mistyped knob would otherwise reach **body and surface as a 500, so the
+    # accepted levers are checked here and reported as a client error.
+    accepted = set(inspect.signature(simulate).parameters) - {"user_id"}
+    unknown = sorted(set(body) - accepted)
+    if unknown:
+        raise HTTPException(
+            422,
+            f"Unknown simulation field(s): {', '.join(unknown)}. "
+            f"Accepted: {', '.join(sorted(accepted))}",
+        )
     try:
         return simulate(user_id=user_id, **body)
     except ValueError as exc:

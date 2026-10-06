@@ -118,8 +118,12 @@ def write_splits(
             frame = drop_leaky_columns(frame)
             frame.to_csv(feature_dir / f"{name}.csv", index=False)
 
-        # User and wallet dimension tables are shared, not period-scoped.
+        # User and wallet dimension tables are shared, not period-scoped. They
+        # normally arrive inside ``splits`` already; this is the fallback for
+        # callers that split only the time-scoped tables.
         for shared in ("users", "wallets"):
+            if shared in tables:
+                continue
             source = generated / f"{shared}.csv"
             if source.exists():
                 frame = drop_leaky_columns(pd.read_csv(source))

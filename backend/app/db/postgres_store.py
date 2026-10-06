@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
-
 import pandas as pd
 
 from app.db.store import TABLES, daily_flow, month_windows, monthly_flow
