@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-import pandas as pd
 
 from app.api.auth import current_user
+from app.core.config import settings
 from app.db.store import cached_store
 
 router = APIRouter(prefix="/api", tags=["data"])
@@ -21,12 +21,12 @@ def _records(name: str) -> list[dict]:
 
 
 @router.get("/dataset")
-def dataset(_: dict = Depends(current_user)):
-    """Return the same generated tables used by the engines to authenticated clients."""
+def dataset():
+    """Return the generated tables from PostgreSQL / CSV store."""
     store = cached_store()
     return {
         "meta": {
-            "source": "data/generated",
+            "source": "postgres" if settings.use_postgres else str(settings.data_root),
             "currency": "BDT",
             "label_columns": ["persona", "is_anomaly", "pattern_type"],
         },

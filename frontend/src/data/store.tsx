@@ -19,8 +19,9 @@ import {
   takaCompact as fmtCompact,
   weekdayLabel as fmtWeekday,
 } from "@/lib/format";
-import { loadDataset, type Dataset } from "./snapshot";
+import { invalidateDatasetCache, loadDataset, type Dataset } from "./snapshot";
 import { buildUserContext, type UserContext } from "./context";
+import { useAuth } from "./auth";
 
 interface CopilotState {
   status: "loading" | "ready" | "error";
@@ -39,6 +40,7 @@ interface CopilotState {
   pushEvidence: (evidence: Evidence) => void;
   popEvidence: () => void;
   clearEvidence: () => void;
+  reloadDataset: () => Promise<void>;
 }
 
 const CopilotContext = createContext<CopilotState | null>(null);
@@ -48,6 +50,7 @@ const STORAGE_LANG = "upay.copilot.lang";
 const STORAGE_NUMERALS = "upay.copilot.numerals";
 
 export function CopilotProvider({ children }: { children: ReactNode }) {
+  const { token, userId: authUserId } = useAuth();
   const [status, setStatus] = useState<CopilotState["status"]>("loading");
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<Dataset | null>(null);
@@ -62,24 +65,40 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
   );
   const [evidenceStack, setEvidenceStack] = useState<Evidence[]>([]);
 
+  const fetchDataset = useCallback(async (signal?: AbortSignal, force = false) => {
+    setStatus("loading");
+    try {
+      const dataset = await loadDataset(signal, force);
+      setData(dataset);
+      setUserIdState((current) => {
+        if (authUserId && dataset.cohort.includes(authUserId)) {
+          localStorage.setItem(STORAGE_USER, authUserId);
+          return authUserId;
+        }
+        const valid = dataset.cohort.includes(current);
+        const resolved = valid && current ? current : dataset.cohort[0] || "";
+        if (resolved) localStorage.setItem(STORAGE_USER, resolved);
+        return resolved;
+      });
+      setStatus("ready");
+      setError(null);
+    } catch (err: unknown) {
+      if (signal?.aborted) return;
+      setError(err instanceof Error ? err.message : String(err));
+      setStatus("error");
+    }
+  }, [authUserId]);
+
   useEffect(() => {
     const controller = new AbortController();
-    loadDataset(controller.signal)
-      .then((dataset) => {
-        setData(dataset);
-        setUserIdState((current) => {
-          const valid = dataset.cohort.includes(current);
-          return valid && current ? current : dataset.cohort[0];
-        });
-        setStatus("ready");
-      })
-      .catch((err: unknown) => {
-        if (controller.signal.aborted) return;
-        setError(err instanceof Error ? err.message : String(err));
-        setStatus("error");
-      });
+    fetchDataset(controller.signal);
     return () => controller.abort();
-  }, []);
+  }, [token, fetchDataset]);
+
+  const reloadDataset = useCallback(async () => {
+    invalidateDatasetCache();
+    await fetchDataset(undefined, true);
+  }, [fetchDataset]);
 
   const setUserId = useCallback((id: string) => {
     setUserIdState(id);
@@ -121,6 +140,7 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
       pushEvidence,
       popEvidence,
       clearEvidence,
+      reloadDataset,
     }),
     [
       status,
@@ -137,6 +157,7 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
       pushEvidence,
       popEvidence,
       clearEvidence,
+      reloadDataset,
     ],
   );
 

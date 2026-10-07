@@ -47,19 +47,37 @@ function decode<T>(table: { columns: string[]; rows: unknown[][] } | T[] | undef
 
 let cache: Dataset | null = null;
 
-export async function loadDataset(signal?: AbortSignal): Promise<Dataset> {
-  if (cache) return cache;
+export function invalidateDatasetCache() {
+  cache = null;
+}
+
+export async function loadDataset(signal?: AbortSignal, forceReload = false): Promise<Dataset> {
+  if (cache && !forceReload) return cache;
   const token = localStorage.getItem(TOKEN_KEY);
-  const res = await fetch(SNAPSHOT_URL, {
-    ...(signal ? { signal } : {}),
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) {
-    throw new Error(
-      `Could not load the authenticated dataset (${res.status}).`,
-    );
+  let json: Snapshot | null = null;
+
+  try {
+    const res = await fetch(SNAPSHOT_URL, {
+      ...(signal ? { signal } : {}),
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (res.ok) {
+      json = (await res.json()) as Snapshot;
+    }
+  } catch {
+    // Backend fetch failed; will attempt fallback
   }
-  const json = (await res.json()) as Snapshot;
+
+  if (!json) {
+    const fallbackRes = await fetch("/data/snapshot.json", {
+      ...(signal ? { signal } : {}),
+    });
+    if (!fallbackRes.ok) {
+      throw new Error(`Could not load dataset from server or static snapshot.`);
+    }
+    json = (await fallbackRes.json()) as Snapshot;
+  }
+
   const t = json.tables;
 
   cache = {

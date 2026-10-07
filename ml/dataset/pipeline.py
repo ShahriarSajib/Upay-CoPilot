@@ -134,12 +134,13 @@ def write_dataset(tables: dict[str, pd.DataFrame], output_dir: str = OUTPUT_DIR)
 def write_temporal_splits(
     tables: dict[str, pd.DataFrame], directories: dict[str, str] = SPLIT_DIRS
 ) -> dict[str, pd.DataFrame]:
-    """Materialise time-based train/validation/test splits."""
-    # Keep dimension tables in the split payload as well. They are copied
-    # unchanged to every split, which makes this function self-contained for
-    # callers that provide an in-memory dataset (including tests).
-    time_scoped = dict(tables)
-    splits = split_frames(time_scoped)
+    """Materialise time-based train/validation/test splits.
+
+    Dimension tables (``users``, ``wallets``) have no timestamp, so
+    :func:`split_frames` copies them into every split and ``write_splits``
+    strips their ground-truth columns on the way out.
+    """
+    splits = split_frames(tables)
     write_splits(splits, directories)
     return splits
 

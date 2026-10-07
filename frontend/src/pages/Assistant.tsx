@@ -70,10 +70,13 @@ const STARTERS = [
   { en: "Where does my money come from?", bn: "আমার টাকা কোথা থেকে আসে?" },
 ];
 
+import { apiBase } from "@/data/auth";
+
 interface Turn {
   id: number;
   query: string;
   answer: AssistantAnswer;
+  provider?: string;
 }
 
 export default function Assistant() {
@@ -85,16 +88,27 @@ export default function Assistant() {
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState(false);
   const [speakingId, setSpeakingId] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioElemRef = useRef<HTMLAudioElement | null>(null);
   const idRef = useRef(0);
   const Recognition = useMemo(() => speechRecognition(), []);
-  const canSpeak = useMemo(() => speechOut() !== null, []);
+  const canSpeak = useMemo(() => speechOut() !== null || typeof Audio !== "undefined", []);
 
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop();
       recognitionRef.current = null;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
       speechOut()?.cancel();
+      if (audioElemRef.current) {
+        audioElemRef.current.pause();
+        audioElemRef.current = null;
+      }
     };
   }, []);
 
@@ -102,14 +116,49 @@ export default function Assistant() {
 
   const stopSpeaking = () => {
     speechOut()?.cancel();
+    if (audioElemRef.current) {
+      audioElemRef.current.pause();
+      audioElemRef.current = null;
+    }
     setSpeakingId(null);
   };
 
-  const speak = (turn: Turn) => {
-    const synth = speechOut();
-    if (!synth) return;
+  const speak = async (turn: Turn) => {
     if (speakingId === turn.id) {
       stopSpeaking();
+      return;
+    }
+    stopSpeaking();
+    setSpeakingId(turn.id);
+
+    // Try server-side synthesis first if available
+    try {
+      const res = await fetch(`${apiBase()}/voice/synthesize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: turn.answer.text }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.audio_url) {
+          const audio = new Audio(data.audio_url);
+          audioElemRef.current = audio;
+          audio.onended = () => setSpeakingId((id) => (id === turn.id ? null : id));
+          audio.onerror = () => fallbackSpeak(turn);
+          await audio.play();
+          return;
+        }
+      }
+    } catch {
+      // Fallback to browser TTS
+    }
+    fallbackSpeak(turn);
+  };
+
+  const fallbackSpeak = (turn: Turn) => {
+    const synth = speechOut();
+    if (!synth) {
+      setSpeakingId(null);
       return;
     }
     synth.cancel();
@@ -119,54 +168,169 @@ export default function Assistant() {
     if (voice) utterance.voice = voice;
     utterance.onend = () => setSpeakingId((id) => (id === turn.id ? null : id));
     utterance.onerror = () => setSpeakingId((id) => (id === turn.id ? null : id));
-    setSpeakingId(turn.id);
     synth.speak(utterance);
   };
 
-  const submit = (raw: string) => {
+  const submit = async (raw: string) => {
     const query = raw.trim();
-    if (!query) return;
+    if (!query || submitting) return;
     stopSpeaking();
-    const answer = askCopilot(bundle, query);
+    setSubmitting(true);
     idRef.current += 1;
-    setTurns((prev) => [{ id: idRef.current, query, answer }, ...prev].slice(0, 12));
+    const turnId = idRef.current;
     setInput("");
+
+    const fallbackAnswer = askCopilot(bundle, query);
+
+    try {
+      const token = localStorage.getItem("upay.copilot.token");
+      const res = await fetch(`${apiBase()}/api/assistant`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          user_id: bundle.ctx.user.user_id,
+          message: query,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        let answerText = data.answer || "";
+        let evidenceList = fallbackAnswer.evidence;
+        if (data.result && typeof data.result === "object") {
+          if (data.result.explanation && data.result.explanation.headline) {
+            const detailLines = data.result.explanation.detail || [];
+            answerText = `${data.result.explanation.headline}${detailLines.length ? "\n\n" + detailLines.join("\n") : ""}`;
+          }
+          if (Array.isArray(data.result.evidence) && data.result.evidence.length) {
+            evidenceList = data.result.evidence;
+          }
+        }
+        const remoteAnswer: AssistantAnswer = {
+          ...fallbackAnswer,
+          text: answerText || fallbackAnswer.text,
+          blocked: Boolean(data.blocked),
+          evidence: evidenceList,
+          traces: [
+            {
+              tool: data.tool || "api_assistant",
+              args: { provider: data.provider },
+              durationMs: 150,
+              ok: !data.blocked,
+            },
+            ...fallbackAnswer.traces,
+          ],
+        };
+        setTurns((prev) =>
+          [{ id: turnId, query, answer: remoteAnswer, provider: data.provider || "gemini" }, ...prev].slice(0, 12),
+        );
+        setSubmitting(false);
+        return;
+      }
+    } catch {
+      // Backend request failed, fall back to client-side engine
+    }
+
+    setTurns((prev) =>
+      [
+        {
+          id: turnId,
+          query,
+          answer: fallbackAnswer,
+          provider: "deterministic",
+        },
+        ...prev,
+      ].slice(0, 12),
+    );
+    setSubmitting(false);
   };
 
-  const toggleVoice = () => {
+  const toggleVoice = async () => {
     if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
-      return;
-    }
-    if (!Recognition) {
-      setVoiceError(true);
-      return;
-    }
-    const rec = new Recognition();
-    rec.lang = lang === "bn" ? "bn-BD" : "en-US";
-    rec.continuous = false;
-    rec.interimResults = false;
-    rec.onresult = (event) => {
-      const text = Array.from({ length: event.results.length }, (_, i) => event.results[i][0].transcript)
-        .join(" ")
-        .trim();
-      if (text) {
-        setInput(text);
-        submit(text);
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
       }
-    };
-    rec.onerror = () => {
-      setVoiceError(true);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
       setListening(false);
-    };
-    rec.onend = () => setListening(false);
-    recognitionRef.current = rec;
-    setVoiceError(false);
-    setListening(true);
-    try {
-      rec.start();
-    } catch {
+      return;
+    }
+
+    if (Recognition) {
+      const rec = new Recognition();
+      rec.lang = lang === "bn" ? "bn-BD" : "en-US";
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.onresult = (event) => {
+        const text = Array.from({ length: event.results.length }, (_, i) => event.results[i][0].transcript)
+          .join(" ")
+          .trim();
+        if (text) {
+          setInput(text);
+          submit(text);
+        }
+      };
+      rec.onerror = () => {
+        setVoiceError(true);
+        setListening(false);
+      };
+      rec.onend = () => setListening(false);
+      recognitionRef.current = rec;
+      setVoiceError(false);
+      setListening(true);
+      try {
+        rec.start();
+        return;
+      } catch {
+        // Fallback to MediaRecorder
+      }
+    }
+
+    // MediaRecorder fallback to backend STT endpoint
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        audioChunksRef.current = [];
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) audioChunksRef.current.push(event.data);
+        };
+        mediaRecorder.onstop = async () => {
+          stream.getTracks().forEach((track) => track.stop());
+          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          if (audioBlob.size > 0) {
+            try {
+              const res = await fetch(`${apiBase()}/voice/transcribe`, {
+                method: "POST",
+                headers: { "Content-Type": "audio/webm" },
+                body: audioBlob,
+              });
+              if (res.ok) {
+                const data = await res.json();
+                if (data.text) {
+                  setInput(data.text);
+                  submit(data.text);
+                }
+              }
+            } catch {
+              // Ignore STT error
+            }
+          }
+        };
+        mediaRecorderRef.current = mediaRecorder;
+        mediaRecorder.start();
+        setVoiceError(false);
+        setListening(true);
+        return;
+      } catch {
+        setVoiceError(true);
+        setListening(false);
+      }
+    } else {
       setVoiceError(true);
       setListening(false);
     }
@@ -310,6 +474,16 @@ export default function Assistant() {
                     <Chip tone="neutral">
                       {f.loc === "bn" ? "ভাষা" : "lang"} {turn.answer.lang === "bn" ? "বাংলা" : "English"}
                     </Chip>
+                    {turn.provider ? (
+                      <Chip tone={turn.provider === "gemini" ? "brand" : turn.provider === "groq" ? "good" : "neutral"}>
+                        <Sparkles className="h-3 w-3" />
+                        {turn.provider === "gemini"
+                          ? "Gemini (Live LLM)"
+                          : turn.provider === "groq"
+                          ? "Groq (Live LLM)"
+                          : "Deterministic Engine"}
+                      </Chip>
+                    ) : null}
                     {turn.answer.traces.length ? (
                       <Chip tone="neutral">
                         <Wrench className="h-3 w-3" />

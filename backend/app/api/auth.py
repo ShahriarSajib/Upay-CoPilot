@@ -7,7 +7,7 @@ import hashlib
 import hmac
 import json
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, EmailStr
@@ -42,10 +42,12 @@ def _db():
 
 def _password_hash(password: str, salt: bytes | None = None) -> str:
     salt = salt or secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 310_000)
-    return "pbkdf2_sha256$310000$%s$%s" % (
-        base64.urlsafe_b64encode(salt).decode(),
-        base64.urlsafe_b64encode(digest).decode(),
+    rounds = 310_000
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, rounds)
+    return (
+        f"pbkdf2_sha256${rounds}"
+        f"${base64.urlsafe_b64encode(salt).decode()}"
+        f"${base64.urlsafe_b64encode(digest).decode()}"
     )
 
 
@@ -61,16 +63,16 @@ def _verify(password: str, encoded: str) -> bool:
 
 
 def _issue(auth_id: str, user_id: str | None) -> TokenResponse:
-    ttl = 3600
+    ttl = settings.access_token_ttl_minutes * 60
     token_id = secrets.token_urlsafe(24)
-    payload = {"jti": token_id, "sub": auth_id, "uid": user_id, "exp": int(datetime.now(UTC).timestamp()) + ttl}
+    payload = {"jti": token_id, "sub": auth_id, "uid": user_id, "exp": int(datetime.now(timezone.utc).timestamp()) + ttl}
     body = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).decode().rstrip("=")
-    secret = settings.auth_secret.encode()
+    secret = settings.signing_secret.encode()
     token = body + "." + hmac.new(secret, body.encode(), hashlib.sha256).hexdigest()
     with _db() as conn:
         conn.execute(
-            "INSERT INTO auth_sessions (auth_id, token_hash, expires_at) VALUES (%s, %s, now() + interval '1 hour')",
-            (auth_id, hashlib.sha256(token.encode()).hexdigest()),
+            "INSERT INTO auth_sessions (auth_id, token_hash, expires_at) VALUES (%s, %s, now() + make_interval(mins => %s))",
+            (auth_id, hashlib.sha256(token.encode()).hexdigest(), settings.access_token_ttl_minutes),
         )
     return TokenResponse(access_token=token, expires_in=ttl, user_id=user_id)
 
@@ -81,13 +83,13 @@ def current_user(authorization: str | None = Header(default=None)) -> dict:
     token = authorization.split(" ", 1)[1]
     try:
         body, signature = token.split(".", 1)
-        expected = hmac.new(settings.auth_secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+        expected = hmac.new(settings.signing_secret.encode(), body.encode(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(signature, expected):
             raise ValueError
         payload = json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
     except (ValueError, json.JSONDecodeError, UnicodeError):
         raise HTTPException(401, "Invalid token") from None
-    if payload.get("exp", 0) < int(datetime.now(UTC).timestamp()):
+    if payload.get("exp", 0) < int(datetime.now(timezone.utc).timestamp()):
         raise HTTPException(401, "Token expired")
     with _db() as conn:
         row = conn.execute(
@@ -102,8 +104,8 @@ def current_user(authorization: str | None = Header(default=None)) -> dict:
 
 @router.post("/signup", response_model=TokenResponse, status_code=201)
 def signup(credentials: Credentials):
-    if len(credentials.password) < 8:
-        raise HTTPException(400, "Password must be at least 8 characters")
+    if len(credentials.password) < settings.password_min_length:
+        raise HTTPException(400, f"Password must be at least {settings.password_min_length} characters")
     with _db() as conn:
         try:
             row = conn.execute(
@@ -111,7 +113,7 @@ def signup(credentials: Credentials):
                 (str(credentials.email).lower(), _password_hash(credentials.password), credentials.user_id),
             ).fetchone()
         except Exception as exc:
-            if "unique" in str(exc).lower():
+            if "auth_users_email_key" in str(exc) or "unique" in str(exc).lower():
                 raise HTTPException(409, "Email already registered") from exc
             raise
     return _issue(str(row[0]), row[1])

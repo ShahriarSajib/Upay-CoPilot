@@ -108,15 +108,15 @@ testing.
 
 ## Technology stack
 
-| Layer            | Technology                                                           |
-| ---------------- | -------------------------------------------------------------------- |
-| Frontend         | React 19, TypeScript, Vite, React Router, Recharts, Tailwind CSS     |
-| Backend          | Python 3.10+, FastAPI, Pydantic, pandas, NumPy, SciPy                |
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 19, TypeScript, Vite, React Router, Recharts, Tailwind CSS |
+| Backend | Python 3.10+, FastAPI, Pydantic, pandas, NumPy, SciPy |
 | Machine learning | scikit-learn, LightGBM, forecast/anomaly/health/segmentation modules |
-| Assistant        | REST-based LLM providers, RAG retrieval, allowlisted tools           |
-| Database         | PostgreSQL with relational schema and foreign keys                   |
-| Authentication   | PBKDF2 password hashing, HMAC bearer tokens, PostgreSQL sessions     |
-| Testing          | pytest, FastAPI TestClient, TypeScript build, ESLint                 |
+| Assistant | REST-based LLM providers, RAG retrieval, allowlisted tools |
+| Database | PostgreSQL with relational schema and foreign keys |
+| Authentication | PBKDF2 password hashing, HMAC bearer tokens, PostgreSQL sessions |
+| Testing | pytest, FastAPI TestClient, TypeScript build, ESLint |
 
 ## Repository structure
 
@@ -169,11 +169,14 @@ At minimum, configure:
 ```dotenv
 USE_POSTGRES=true
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
-AUTH_SECRET=use-a-long-random-secret
+JWT_SECRET_KEY=use-a-long-random-secret
 ```
 
-Set `ALLOWED_ORIGINS` to the frontend origin when it is not running on the
-default Vite URL.
+`JWT_SECRET_KEY` signs every access token; `AUTH_SECRET` is accepted as an alias
+for it. Set `FRONTEND_ORIGINS` to the frontend origin (a JSON list) when it is
+not running on the default Vite URL — it takes precedence over
+`ALLOWED_ORIGINS`, and the browser will reject credentialed requests sent to a
+wildcard origin.
 
 Never commit API keys, database passwords, or production secrets.
 
@@ -242,8 +245,11 @@ The frontend is available at the Vite URL shown in the terminal, normally
 If the backend is hosted somewhere else, set:
 
 ```dotenv
-VITE_API_URL=http://127.0.0.1:8000
+VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
+
+The variable name must match exactly: the client reads `VITE_API_BASE_URL` and
+silently falls back to `http://127.0.0.1:8000` if it is absent.
 
 ## Authentication flow
 
@@ -270,13 +276,13 @@ Logout → session revoked
 
 Available authentication endpoints:
 
-| Method   | Endpoint         | Purpose                                      |
-| -------- | ---------------- | -------------------------------------------- |
-| `POST` | `/auth/signup` | Create an account and issue a session        |
-| `POST` | `/auth/login`  | Verify credentials and issue a session       |
-| `POST` | `/auth/logout` | Revoke the current session                   |
-| `GET`  | `/auth/me`     | Validate the current bearer token            |
-| `GET`  | `/api/dataset` | Return the authenticated application dataset |
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/auth/signup` | Create an account and issue a session |
+| `POST` | `/auth/login` | Verify credentials and issue a session |
+| `POST` | `/auth/logout` | Revoke the current session |
+| `GET` | `/auth/me` | Validate the current bearer token |
+| `GET` | `/api/dataset` | Return the authenticated application dataset |
 
 Signup accepts an optional generated user ID:
 

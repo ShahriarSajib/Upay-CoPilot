@@ -15,19 +15,41 @@ import httpx
 from app.core.config import settings
 from app.llm.guards import guard_output, sanitize_input
 from app.llm.rag import render_context, retrieve
-from app.llm.tools import ALLOWED_TOOLS, TOOLS
+from app.llm.tools import ALLOWED_TOOLS, TOOLS, tool_schemas
 
 
 class RouterError(Exception):
     pass
 
 
+def _split_for_gemini(messages: list[dict]) -> tuple[str, list[dict]]:
+    """Translate OpenAI-style messages into Gemini's ``contents`` shape.
+
+    Gemini rejects ``{"role": ..., "content": ...}`` outright, so the router's
+    shared message list has to be converted: ``system`` becomes a
+    ``systemInstruction`` and ``assistant`` becomes ``model``.
+    """
+    system: list[str] = []
+    contents: list[dict] = []
+    for message in messages:
+        role = message.get("role", "user")
+        text = message.get("content") or ""
+        if role == "system":
+            system.append(text)
+        elif role == "assistant":
+            contents.append({"role": "model", "parts": [{"text": text}]})
+        else:
+            contents.append({"role": "user", "parts": [{"text": text}]})
+    return "\n\n".join(system), contents
+
+
 def _call_gemini(messages: list[dict], tools_schema: list[dict] | None = None) -> dict:
     if not settings.gemini_api_key or not settings.gemini_base_url:
         raise RouterError("gemini not configured")
     url = f"{settings.gemini_base_url.rstrip('/')}/v1beta/models/{settings.gemini_model}:generateContent"
+    system_text, contents = _split_for_gemini(messages)
     payload: dict = {
-        "contents": messages,
+        "contents": contents,
         "generationConfig": {
             "temperature": 0.1,
             "topK": 1,
@@ -36,6 +58,8 @@ def _call_gemini(messages: list[dict], tools_schema: list[dict] | None = None) -
             "responseMimeType": "application/json",
         },
     }
+    if system_text:
+        payload["systemInstruction"] = {"parts": [{"text": system_text}]}
     if tools_schema:
         payload["tools"] = [{"functionDeclarations": tools_schema}]
     headers = {
@@ -49,7 +73,10 @@ def _call_gemini(messages: list[dict], tools_schema: list[dict] | None = None) -
         data = r.json()
         return data
     except httpx.HTTPError as exc:
-        raise RouterError(f"gemini request failed: {exc}") from exc
+        detail = ""
+        if isinstance(exc, httpx.HTTPStatusError) and exc.response.text:
+            detail = f" | {exc.response.text[:300]}"
+        raise RouterError(f"gemini request failed: {exc}{detail}") from exc
 
 
 def _call_groq(messages: list[dict], tools_schema: list[dict] | None = None) -> dict:
@@ -61,12 +88,15 @@ def _call_groq(messages: list[dict], tools_schema: list[dict] | None = None) -> 
         "messages": messages,
         "temperature": 0.1,
         "max_tokens": 256,
-        "response_format": {"type": "json_object"},
     }
     if tools_schema:
+        # JSON mode is rejected alongside tools, and the router always offers
+        # tools, so response_format is only used on the tool-less path.
         payload["tools"] = [
             {"type": "function", "function": t} for t in tools_schema
         ]
+    else:
+        payload["response_format"] = {"type": "json_object"}
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {settings.groq_api_key}",
@@ -77,19 +107,42 @@ def _call_groq(messages: list[dict], tools_schema: list[dict] | None = None) -> 
             r.raise_for_status()
         return r.json()
     except httpx.HTTPError as exc:
-        raise RouterError(f"groq request failed: {exc}") from exc
+        detail = ""
+        if isinstance(exc, httpx.HTTPStatusError) and exc.response.text:
+            detail = f" | {exc.response.text[:300]}"
+        raise RouterError(f"groq request failed: {exc}{detail}") from exc
 
 
 def _tool_schemas() -> list[dict]:
-    # Minimal schemas
-    return [
-        {
-            "name": name,
-            "description": f"Deterministic engine tool: {name}",
-            "parameters": {"type": "object", "properties": {}, "required": []},
-        }
-        for name in ALLOWED_TOOLS
-    ]
+    # Real schemas declared once in app/llm/tools.py so models can call tools
+    # with concrete arguments instead of inventing them.
+    return tool_schemas()
+
+
+def _declared_parameters() -> dict[str, set[str]]:
+    """Argument names each tool actually advertises in its schema.
+
+    Models sometimes invent arguments. The engines take their inputs from the
+    route, not from the model, so anything the schema does not declare is
+    dropped before dispatch instead of raising inside the engine.
+    """
+    return {
+        tool["name"]: set(tool["parameters"].get("properties", {}))
+        for tool in _tool_schemas()
+    }
+
+
+def _as_dict(raw: object) -> dict:
+    """Tool arguments arrive as an object (Gemini) or a JSON string (Groq)."""
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str) and raw.strip():
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
 
 
 def _extract_tool_call(resp: dict) -> tuple[str | None, dict]:
@@ -101,7 +154,7 @@ def _extract_tool_call(resp: dict) -> tuple[str | None, dict]:
             for p in parts:
                 if "functionCall" in p:
                     fc = p["functionCall"]
-                    return fc["name"], json.loads(fc.get("args", "{}"))
+                    return fc["name"], _as_dict(fc.get("args"))
     except Exception:
         pass
     # Groq
@@ -109,7 +162,7 @@ def _extract_tool_call(resp: dict) -> tuple[str | None, dict]:
         choices = resp.get("choices", [])
         if choices and choices[0]["message"].get("tool_calls"):
             tc = choices[0]["message"]["tool_calls"][0]
-            return tc["function"]["name"], json.loads(tc["function"]["arguments"] or "{}")
+            return tc["function"]["name"], _as_dict(tc["function"].get("arguments"))
     except Exception:
         pass
     return None, {}
@@ -170,6 +223,7 @@ def router_chat(messages: list[dict], user_id: str, context: dict | None = None)
     }
     msgs = [system, *clean_messages]
     schema = _tool_schemas()
+    declared = _declared_parameters()
     for provider in ("gemini", "groq"):
         try:
             if provider == "gemini":
@@ -178,6 +232,7 @@ def router_chat(messages: list[dict], user_id: str, context: dict | None = None)
                 resp = _call_groq(msgs, tools_schema=schema)
             name, args = _extract_tool_call(resp)
             if name in TOOLS:
+                args = {k: v for k, v in args.items() if k in declared.get(name, set())}
                 try:
                     result = TOOLS[name](user_id=user_id, **args)
                 except Exception as exc:

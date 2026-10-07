@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     allowed_origins: list[str] = ["*"]
+    frontend_origins: list[str] = []
 
     # --- financial policy --------------------------------------------------
     monthly_recurring_cap: float = 0.40
@@ -67,16 +68,35 @@ class Settings(BaseSettings):
     stt_model: str = ""
     tts_model: str = ""
 
-    # --- storage -----------------------------------------------------------
+ # --- storage -----------------------------------------------------------
     use_postgres: bool = False
     database_url: str = ""
+    load_derived_tables: bool = True
+
+ # --- auth --------------------------------------------------------------
+ # ``JWT_SECRET_KEY`` is the documented name; ``AUTH_SECRET`` is kept as an
+ # alias so either spelling in the environment signs the tokens.
     auth_secret: str = "change-me-in-production"
+    jwt_secret_key: str = ""
+    access_token_ttl_minutes: int = 720
+    refresh_token_ttl_minutes: int = 43200
+    password_min_length: int = 8
 
     model_config = SettingsConfigDict(
         env_file=str(BACKEND_ROOT / ".env"),
         env_file_encoding="utf-8",
         extra="allow",
     )
+
+    @property
+    def signing_secret(self) -> str:
+        """The key that signs access tokens, whichever env var supplied it."""
+        return self.jwt_secret_key or self.auth_secret
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """Origins allowed to send credentialed browser requests."""
+        return self.frontend_origins or self.allowed_origins
 
 
 settings = Settings()
