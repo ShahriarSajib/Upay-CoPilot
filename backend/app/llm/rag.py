@@ -43,7 +43,10 @@ KNOWLEDGE_BASE: tuple[KnowledgeItem, ...] = (
             "computed by a deterministic engine; the assistant only explains it."
         ),
         source="README.md#core-capabilities",
-        tags=("capability", "feature", "what", "can", "do", "help"),
+        tags=(
+            "capability", "capabilities", "feature", "features", "what", "can",
+            "do", "help", "available", "options", "tools", "skills", "support",
+        ),
     ),
     KnowledgeItem(
         key="health_score",

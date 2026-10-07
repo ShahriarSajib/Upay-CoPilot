@@ -108,7 +108,13 @@ def splits_root(root: Path | str | None = None) -> Path:
     if not path.exists():
         raise SplitError(
             f"Split directory not found: {path}. "
-            "Run `python scripts/generate_dev_dataset.py` to build it."
+            "Run `python scripts/generate_synthetic_data.py` to build data/{train,validation,test}."
+        )
+    missing = [name for name in SPLIT_NAMES if not (path / name).exists()]
+    if missing:
+        raise SplitError(
+            f"Split root {path} is missing {', '.join(missing)}. "
+            "Expected <root>/{train,validation,test}/{features,labels}."
         )
     return path
 

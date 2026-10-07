@@ -30,7 +30,11 @@ class Settings(BaseSettings):
     # --- data --------------------------------------------------------------
     # The generated population is the single source of truth for the product.
     data_root: Path = REPO_ROOT / "data" / "generated"
-    split_path: Path = REPO_ROOT / "data" / "generated" / "splits"
+    # Temporal train/validation/test splits live directly under ``data/`` as
+    # ``data/{train,validation,test}/{features,labels}``. They are research
+    # artifacts: the loader in ``app.data.splits`` refuses any root containing
+    # ``generated``, so the product dataset can never become a training source.
+    split_path: Path = REPO_ROOT / "data"
     generated_dir: Path = REPO_ROOT / "data" / "generated"
 
     # --- artifacts ---------------------------------------------------------
@@ -43,6 +47,16 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_base_url: str = "https://api.groq.com"
     groq_model: str = "llama-3.1-70b-versatile"
+
+    # Routing policy, applied per attempt inside the provider chain. Every one
+    # of these is a knob a reviewer can point at: how long a customer waits,
+    # how many times a flaky vendor is retried before failing over, and how
+    # many consecutive failures put a provider behind a circuit breaker.
+    llm_timeout_seconds: float = 10.0
+    llm_max_attempts: int = 2
+    llm_backoff_seconds: float = 0.25
+    llm_breaker_threshold: int = 3
+    llm_breaker_reset_seconds: float = 30.0
 
     # --- voice (env-pluggable) --------------------------------------------
     stt_provider: str = "env"

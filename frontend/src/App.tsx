@@ -30,6 +30,7 @@ const Literacy = lazy(() => import("./pages/Literacy"));
 const MonthlyReview = lazy(() => import("./pages/MonthlyReview"));
 const Assistant = lazy(() => import("./pages/Assistant"));
 const Evaluation = lazy(() => import("./pages/Evaluation"));
+const EvidenceDashboard = lazy(() => import("./pages/EvidenceDashboard"));
 
 function Page({ children }: { children: ReactNode }) {
   const bundle = useBundle();
@@ -171,6 +172,14 @@ export default function App() {
           element={
             <Page>
               <Evaluation />
+            </Page>
+          }
+        />
+        <Route
+          path="evidence"
+          element={
+            <Page>
+              <EvidenceDashboard />
             </Page>
           }
         />

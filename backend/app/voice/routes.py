@@ -67,7 +67,7 @@ async def transcribe(request: Request) -> dict[str, Any]:
                 "content_type": content_type,
                 "size_bytes": len(body),
                 "text": "",
-                "note": f"AssemblyAI request error: {exc}",
+                "note": "AssemblyAI request error",
             }
 
     return {

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.assistant import router as assistant_router
 from app.api.auth import router as auth_router
 from app.api.data import router as data_router
+from app.api.evidence import router as evidence_router
 from app.api.engines import router as engines_router
 from app.api.engines_extra import router as engines_extra_router
 from app.core.config import settings
@@ -30,6 +31,7 @@ app.include_router(assistant_router)
 app.include_router(voice_router)
 app.include_router(auth_router)
 app.include_router(data_router)
+app.include_router(evidence_router)
 
 
 @app.get("/")
@@ -51,7 +53,7 @@ def health_check():
         store = cached_store()
         report["store"] = "postgres" if settings.use_postgres else "csv"
         report["users"] = int(len(store.users()))
-    except Exception as exc:  # storage problems must not look like an API outage
+    except Exception:  # storage problems must not look like an API outage
         report["status"] = "degraded"
-        report["error"] = f"{type(exc).__name__}: {exc}"
+        report["error"] = "storage backend unavailable"
     return report
