@@ -120,6 +120,8 @@ def write_splits(
 
         # User and wallet dimension tables are shared, not period-scoped.
         for shared in ("users", "wallets"):
+            if shared in tables:
+                continue
             source = generated / f"{shared}.csv"
             if source.exists():
                 frame = drop_leaky_columns(pd.read_csv(source))

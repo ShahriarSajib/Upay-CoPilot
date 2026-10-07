@@ -41,13 +41,24 @@ REDACTION_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bsk-[A-Za-z0-9_-]{10,}\b"), "[secret]"),
 )
 
+# Scope terms. Substring match against the lowercased message, so stems like
+# "categor" cover "category"/"categories". Two of the product's own most
+# natural questions -- "will I run short before payday" and "which categories
+# grew fastest" -- were being refused until these were added; see
+# app.evaluation.llm_eval.run_guards, which measures the false-positive rate
+# on 40 legitimate questions so a regression here is visible.
 TOPIC_TERMS: tuple[str, ...] = (
-    "money", "taka", "bdt", "spend", "spent", "budget", "save", "saving", "goal",
-    "emergency", "buffer", "balance", "income", "salary", "cash", "bill", "bills",
-    "loan", "credit", "health", "forecast", "overspend", "overspending", "rent",
-    "food", "transport", "utilities", "wallet", "upay", "literacy", "literate",
-    "financial", "finance", "simulate", "simulation", "resilience", "recurring",
-    "monthly", "risk", "ready", "readiness", "save", "deposit", "expense",
+    "money", "taka", "bdt", "spend", "spent", "spending", "budget", "save", "saving",
+    "goal", "emergency", "buffer", "balance", "income", "salary", "cash", "bill",
+    "bills", "loan", "credit", "health", "forecast", "overspend", "overspending",
+    "rent", "food", "transport", "utilities", "wallet", "upay", "literacy",
+    "literate", "financial", "finance", "simulate", "simulation", "resilience",
+    "recurring", "monthly", "risk", "ready", "readiness", "deposit", "expense",
+    # Question stems that only sound general-purpose.
+    "short", "shortage", "payday", "run short", "categor", "trend", "fastest",
+    "slowest", "grew", "grow", "growing", "increase", "decrease", "afford",
+    "week", "month", "due", "left", "top", "compare", "higher", "lowest",
+    "highest", "retire", "retirement", "fund",
 )
 
 

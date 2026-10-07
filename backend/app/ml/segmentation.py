@@ -47,6 +47,11 @@ BEHAVIOUR_REFERENCE: dict[str, tuple[str, ...]] = {
 
 NON_NUMERIC_COLUMNS = ("user_id", "top_category", "age_group", "occupation", "location_type")
 
+# Ground-truth-derived columns. ``anomaly_events`` is counted from the
+# generator's ``is_anomaly`` flag, which no serving path can know before the
+# detector has run, so it is excluded from the clustering grain.
+GROUND_TRUTH_FEATURE_COLUMNS = ("anomaly_events", "anomaly_count")
+
 MIN_USERS_PER_CLUSTER = 5
 MIN_POPULATION = 20
 
@@ -56,7 +61,10 @@ def feature_columns(frame: pd.DataFrame) -> list[str]:
     return sorted(
         column
         for column in frame.columns
-        if column not in NON_NUMERIC_COLUMNS and pd.api.types.is_numeric_dtype(frame[column])
+        if column not in NON_NUMERIC_COLUMNS
+        and column not in GROUND_TRUTH_FEATURE_COLUMNS
+        and not column.startswith("label_")
+        and pd.api.types.is_numeric_dtype(frame[column])
     )
 
 

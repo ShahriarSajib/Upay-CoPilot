@@ -6,6 +6,7 @@ from app.api.engines import router as engines_router
 from app.api.engines_extra import router as engines_extra_router
 from app.api.auth import router as auth_router
 from app.api.data import router as data_router
+from app.api.evidence import router as evidence_router
 from app.core.config import settings
 from app.voice.routes import router as voice_router
 
@@ -29,6 +30,7 @@ app.include_router(assistant_router)
 app.include_router(voice_router)
 app.include_router(auth_router)
 app.include_router(data_router)
+app.include_router(evidence_router)
 
 
 @app.get("/")

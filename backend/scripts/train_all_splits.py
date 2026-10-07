@@ -68,6 +68,12 @@ from app.ml.forecast import train_level_forecasters  # noqa: E402
 REPORT_PATH = Path(__file__).resolve().parents[1] / "reports" / "evaluation_report.json"
 
 
+def _split_source() -> str:
+    from app.data.splits import splits_root
+
+    return str(splits_root())
+
+
 def _rule(title: str) -> None:
     print(f"\n{'=' * 70}\n{title}\n{'=' * 70}")
 
@@ -117,7 +123,7 @@ def train_forecast(report: dict) -> None:
             "train_periods": fitted["train_periods"],
             "validation_periods": fitted["validation_periods"],
             "history_windows": fitted["history_windows"],
-            "source": "data/dev/splits",
+            "source": _split_source(),
         },
     )
 
@@ -222,7 +228,7 @@ def train_anomaly(report: dict) -> None:
             "features": anomaly["features"],
             "contamination": anomaly["contamination"],
             "selection": selection,
-            "source": "data/dev/splits",
+            "source": _split_source(),
         },
     )
 
@@ -340,7 +346,7 @@ def train_segmentation(report: dict) -> None:
             "seed": bundle["seed"],
             "labels": {str(k): v.value for k, v in label_by_cluster.items()},
             "generic_label_used": bool(generic),
-            "source": "data/dev/splits",
+            "source": _split_source(),
         },
     )
     save_card(
@@ -473,11 +479,19 @@ def train_health(report: dict) -> None:
     evaluation["honest_verdict"] = verdict
     print("\n  --- verdict: did the model beat the trivial baselines? ---")
     for row in verdict:
-        print(
-            f"   {row['target']:24s} {row['verdict']:26s} "
-            f"model MAE={row['model_mae']:.4f} "
-            f"direct={row['direct_feature_baseline_mae']}"
-        )
+        if row.get("task") == "regression":
+            print(
+                f"   {row['target']:24s} {row['verdict']:26s} "
+                f"model MAE={row['model_mae']:.4f} "
+                f"direct={row['direct_feature_baseline_mae']}"
+            )
+        else:
+            print(
+                f"   {row['target']:24s} {row['verdict']:26s} "
+                f"model F1={row['model_f1']:.3f} "
+                f"majority F1={row['majority_baseline_f1']} "
+                f"null AUC={row['null_control_roc_auc']}"
+            )
     evaluation["caveat"] = ml_health.leakage_by_construction_note()
     print("\n  CAVEAT:", evaluation["caveat"][:96], "...")
 
@@ -489,7 +503,7 @@ def train_health(report: dict) -> None:
             "classifiers": bundle["classifiers"],
             "skipped": bundle["skipped"],
             "seed": bundle["seed"],
-            "source": "data/dev/splits",
+            "source": _split_source(),
             "protected_columns_excluded": list(ml_health.PROTECTED_COLUMNS),
         },
     )
@@ -558,22 +572,29 @@ def train_health(report: dict) -> None:
 
 def main() -> int:
     reset_cache()
+    from app.core.config import settings
+    from app.data.splits import splits_root
+
+    root = splits_root()
     report: dict = {
         "trained_at": datetime.now(timezone.utc).isoformat(),
-        "source": "data/dev/splits",
+        "source": str(root),
+        "split_root_guard": "roots containing 'generated' are refused by app.data.splits",
         "splits": describe_all(),
         "disjoint_periods": assert_disjoint_periods(),
         "runtime": {
             "python_packages": {
                 "lightgbm": _version("lightgbm"),
-                "scikit_learn": _version("sklearn"),
+                "scikit_learn": _version("scikit-learn"),
+                "xgboost": _version("xgboost"),
+                "shap": _version("shap"),
                 "pandas": _version("pandas"),
                 "numpy": _version("numpy"),
             },
-            "not_installed": {
-                name: "optional / unused in this build"
-                for name in ("xgboost", "shap", "hdbscan")
-            },
+            "optional_missing": _missing(
+                ("statsmodels", "hdbscan", "prophet")
+            ),
+            "data_root": str(settings.data_root),
         },
     }
 
@@ -595,7 +616,11 @@ def _version(module: str) -> str:
 
         return metadata.version(module)
     except Exception:  # pragma: no cover - metadata is always present in practice
-        return "unknown"
+        return "not installed"
+
+
+def _missing(names: tuple[str, ...]) -> list[str]:
+    return [name for name in names if _version(name) == "not installed"]
 
 
 if __name__ == "__main__":

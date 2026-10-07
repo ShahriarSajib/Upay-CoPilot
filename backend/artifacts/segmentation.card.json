@@ -1,13 +1,12 @@
 {
   "name": "segmentation",
   "task": "unsupervised behavioural grouping of customers",
-  "trained_at": "2026-10-04T00:44:10.506377+00:00",
+  "trained_at": "2026-10-07T03:45:31.611126+00:00",
   "train_window": "2026-01..2026-05",
   "validation_window": "2026-06..2026-07",
   "features": [
     "account_age_days",
     "account_age_months",
-    "anomaly_events",
     "balance_volatility",
     "cash_dependency",
     "category_entropy",
@@ -47,25 +46,25 @@
     "wallet_count"
   ],
   "metrics": {
-    "silhouette": 0.2375,
-    "inertia": 1121.2734,
+    "silhouette": 0.2116,
+    "inertia": 11640.3201,
     "cluster_sizes": {
-      "0": 28,
-      "1": 3,
-      "2": 17,
-      "3": 2
+      "0": 265,
+      "1": 49,
+      "2": 3,
+      "3": 183
     },
-    "mean_adjusted_rand_index_vs_behaviour_flags": 0.1593,
-    "temporal_adjusted_rand_index": 0.8571,
-    "temporal_identical_assignment_share": 0.34
+    "mean_adjusted_rand_index_vs_behaviour_flags": 0.151,
+    "temporal_adjusted_rand_index": 0.9686,
+    "temporal_identical_assignment_share": 0.006
   },
   "baselines": {
     "silhouette_by_k": {
-      "2": 0.1974,
-      "3": 0.2143,
-      "4": 0.2375,
-      "5": 0.2087,
-      "6": 0.1796
+      "2": 0.1848,
+      "3": 0.2057,
+      "4": 0.2116,
+      "5": 0.1926,
+      "6": 0.1475
     }
   },
   "notes": "KMeans on standardised user-level behavioural features; k chosen by silhouette. HDBSCAN was not used: it is not installed and on this population size it would return one cluster plus noise, which is indistinguishable from 'no structure'. Internal metrics are reported alongside adjusted Rand index against the generator's behaviour flags and against an independently refit segmentation on a longer history, because a silhouette can always be raised by adding clusters."

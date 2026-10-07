@@ -75,6 +75,7 @@ const NAV: NavGroup[] = [
       { to: "/resilience", key: "resilience", icon: ShieldCheck },
       { to: "/credit-readiness", key: "credit", icon: BadgeCheck },
       { to: "/evaluation", key: "evaluation", icon: Scale },
+      { to: "/evidence", key: "evidence", icon: FlaskConical },
     ],
   },
 ];

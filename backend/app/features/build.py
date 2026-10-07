@@ -136,9 +136,16 @@ def daily_features(transactions: pd.DataFrame, wallets: pd.DataFrame) -> pd.Data
         .rename("recurring_amount")
     )
 
-    anomalies = (
-        tx[tx["is_anomaly"]].groupby(["user_id", "date"]).size().rename("anomaly_count")
-    )
+    # ``is_anomaly`` is generator ground truth. It is present on the product
+    # dataset and on ``Split.transactions`` (which re-attaches it for scoring),
+    # but it must never be required to build features: the feature side of a
+    # split deliberately does not carry it.
+    if "is_anomaly" in tx.columns:
+        anomalies = (
+            tx[tx["is_anomaly"].fillna(False)].groupby(["user_id", "date"]).size().rename("anomaly_count")
+        )
+    else:
+        anomalies = pd.Series(dtype=float, name="anomaly_count")
 
     frames = [
         inflow,

@@ -135,11 +135,10 @@ def write_temporal_splits(
     tables: dict[str, pd.DataFrame], directories: dict[str, str] = SPLIT_DIRS
 ) -> dict[str, pd.DataFrame]:
     """Materialise time-based train/validation/test splits."""
-    time_scoped = {
-        name: frame
-        for name, frame in tables.items()
-        if name not in ("users", "wallets")
-    }
+    # Keep dimension tables in the split payload as well. They are copied
+    # unchanged to every split, which makes this function self-contained for
+    # callers that provide an in-memory dataset (including tests).
+    time_scoped = dict(tables)
     splits = split_frames(time_scoped)
     write_splits(splits, directories)
     return splits

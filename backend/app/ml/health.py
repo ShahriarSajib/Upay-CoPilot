@@ -70,6 +70,38 @@ def target_column(name: str) -> str:
     """Where a ground-truth target lives inside the supervised frame."""
     return f"{TARGET_PREFIX}{name}"
 
+
+# Columns that must never be predictors. Two kinds:
+#   * ``label_*`` -- the ground-truth targets themselves, renamed on merge.
+#     They are numeric, so a naive "keep the numeric columns" rule picks them
+#     up and the model reads the answer straight off the design matrix (this
+#     produced R2 ~0.95 and F1 = 1.0 before it was caught).
+#   * whole-window aggregates that are derived from the same ledger the labels
+#     are derived from, so they restate the answer rather than predict it.
+NON_FEATURE_COLUMNS: tuple[str, ...] = (
+    "periods_observed",
+    "months_observed",
+    "monthly_income_avg",
+    "monthly_expense_avg",
+    "average_monthly_savings",
+    "anomaly_count",
+    # Derived from the generator's ``is_anomaly`` ground truth, so it is only
+    # knowable after the answer is already assigned. Never a predictor.
+    "anomaly_events",
+)
+
+
+def is_feature_column(column: str) -> bool:
+    """True when a column may enter the design matrix."""
+    if column == ID_COLUMN or column in PROTECTED_COLUMNS:
+        return False
+    if column.startswith(TARGET_PREFIX):
+        return False
+    if column in NON_FEATURE_COLUMNS:
+        return False
+    return True
+
+
 # Label flag -> behaviour labels column name.
 CLASSIFICATION_TARGETS: dict[str, str] = {
     "end_month_shortage": "end_month_shortage_label",
@@ -88,14 +120,18 @@ MIN_POSITIVE_ROWS = 5
 
 
 def feature_columns(user_frame: pd.DataFrame) -> list[str]:
-    """Numeric behavioural columns, protected attributes and ids removed."""
-    columns: list[str] = []
-    for column in user_frame.columns:
-        if column == ID_COLUMN or column in PROTECTED_COLUMNS:
-            continue
-        if pd.api.types.is_numeric_dtype(user_frame[column]):
-            columns.append(column)
-    return columns
+    """Numeric behavioural columns with targets and protected attrs removed.
+
+    Excluding ``label_*`` here is the single most important leakage control in
+    this module: :func:`supervised_frame` merges the ground truth into the same
+    frame the features come from, so anything that reads "all numeric columns"
+    would hand the model its own answers.
+    """
+    return [
+        column
+        for column in user_frame.columns
+        if is_feature_column(column) and pd.api.types.is_numeric_dtype(user_frame[column])
+    ]
 
 
 def design_matrix(user_frame: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
@@ -404,41 +440,85 @@ def honest_verdict(
     """Per target: did the model actually beat the trivial baselines?
 
     Published alongside the headline scores so a reader is never left
-    assuming a good R2 means the model earned it. Three verdicts:
+    assuming a good R2 / F1 means the model earned it. Verdicts:
 
-    ``beats_trivial``   lower MAE than both the train-mean and direct-feature
-                        baselines -- the model is adding something.
-    ``no_gain_over_rule`` the direct feature copy is at least as good, so the
-                        honest description is "this target is an aggregate the
-                        engine already computes", and the model is at best a
-                        smoother restatement of it.
-    ``null_control_above_chance`` the shuffled-label control beat chance, which
-        on n=50 is a warning that the split has residual structure, not a
-        success.
+    ``beats_trivial``      lower MAE than both the train-mean and the
+                           direct-feature baselines -- the model adds something.
+    ``no_gain_over_rule``  a plain copy of the engine feature is at least as
+                           good, so the honest description is "this target is a
+                           restatement of an aggregate the engine already
+                           computes" rather than a learned prediction.
+    ``null_control_failed`` the shuffled-label control scored as well as the
+                           real model, which means the pipeline is leaking and
+                           none of the numbers can be believed.
+    ``single_class``       the held-out fold contains one class only, so the
+                           metric is undefined.
+
+    Regression targets are checked against the shuffled-label **R2**, and
+    classification targets against the shuffled-label **ROC-AUC**; the previous
+    version looked up a classification key for a regression target, so the
+    control check silently never fired.
     """
     out: list[dict] = []
+
+    def _null_entry(target: str) -> dict:
+        regression = null.get("regression", {}).get(target)
+        if regression is not None:
+            return regression
+        return null.get("classification", {}).get(target, {})
+
     for target, entry in fold_test.get("regression", {}).items():
         mae = float(entry.get("mae", float("nan")))
         mean_baseline = entry.get("train_mean_baseline", {}).get("mae")
         direct = direct_baseline.get(target, {}).get("mae")
+        control = _null_entry(target)
+        control_r2 = control.get("r2")
         verdict = "beats_trivial"
         if direct is not None and mae >= float(direct):
             verdict = "no_gain_over_rule"
         elif mean_baseline is not None and mae >= float(mean_baseline):
             verdict = "no_gain_over_rule"
-        control_auc = (
-            null.get("classification", {}).get(target, {}).get("roc_auc")
-        )
-        if control_auc is not None and float(control_auc) > 0.65:
-            verdict = "null_control_above_chance"
+        if control_r2 is not None and not np.isnan(float(control_r2)) and float(control_r2) > 0.30:
+            verdict = "null_control_failed"
         out.append(
             {
                 "target": target,
+                "task": "regression",
                 "model_mae": mae,
+                "model_r2": entry.get("r2"),
                 "train_mean_baseline_mae": mean_baseline,
                 "direct_feature_baseline_mae": direct,
+                "null_control_r2": control_r2,
                 "verdict": verdict,
+            }
+        )
+
+    for target, entry in fold_test.get("classification", {}).items():
+        positives = int(entry.get("positives", 0))
+        negatives = int(entry.get("negatives", 0))
+        control = _null_entry(target)
+        control_auc = control.get("roc_auc")
+        baseline_f1 = entry.get("majority_baseline_f1")
+        f1 = float(entry.get("f1", float("nan")))
+        if positives == 0 or negatives == 0:
+            verdict = "single_class"
+        elif control_auc is not None and float(control_auc) > 0.65:
+            verdict = "null_control_failed"
+        elif baseline_f1 is not None and f1 <= float(baseline_f1):
+            verdict = "no_gain_over_rule"
+        else:
+            verdict = "beats_trivial"
+        out.append(
+            {
+                "target": target,
+                "task": "classification",
+                "model_f1": f1,
+                "model_roc_auc": entry.get("roc_auc"),
+                "majority_baseline_f1": baseline_f1,
                 "null_control_roc_auc": control_auc,
+                "positives": positives,
+                "negatives": negatives,
+                "verdict": verdict,
             }
         )
     return out
@@ -577,9 +657,13 @@ def evaluate(
         entry = classification_metrics(y_true, (score >= 0.5).astype(int), score)
         # Majority-class baseline, so a low F1 can be read in context.
         majority = int(fold_train[column].mean() >= 0.5)
+        majority_pred = np.full(len(y_true), majority, dtype=int)
         entry["majority_baseline_accuracy"] = float(
             max((y_true == 1).mean(), (y_true == 0).mean())
         )
+        entry["majority_baseline_f1"] = classification_metrics(
+            y_true, majority_pred, np.full(len(y_true), float(majority))
+        )["f1"]
         entry["majority_class"] = majority
         report["classification"][target] = entry
 
