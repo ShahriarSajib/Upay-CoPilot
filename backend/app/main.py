@@ -53,7 +53,7 @@ def health_check():
         store = cached_store()
         report["store"] = "postgres" if settings.use_postgres else "csv"
         report["users"] = int(len(store.users()))
-    except Exception as exc:  # storage problems must not look like an API outage
+    except Exception:  # storage problems must not look like an API outage
         report["status"] = "degraded"
-        report["error"] = f"{type(exc).__name__}: {exc}"
+        report["error"] = "storage backend unavailable"
     return report
